@@ -1,0 +1,10 @@
+OBJECTS/calculate_syn_spectrum.o: \
+ SRC/sim_create/calculate_syn_spectrum.f90 DEPEND/header_module.mod \
+ DEPEND/read_synsettings_module.mod DEPEND/optic_input_module.mod \
+ DEPEND/optic_cirrus_module.mod DEPEND/opticm_module.mod \
+ DEPEND/forward_model_noscat_module.mod DEPEND/forward_model_module.mod \
+ DEPEND/spec_interface_create_module.mod \
+ DEPEND/auxiliary_routines_module.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod

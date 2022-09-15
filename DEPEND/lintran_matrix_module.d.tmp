@@ -1,0 +1,4 @@
+OBJECTS/lintran_matrix_module.o: \
+ SRC/remotec_core/LINTRAN/lintran_matrix_module.f90 \
+ DEPEND/lintran_constants_module.mod DEPEND/lintran_types_module.mod \
+ DEPEND/lintran_constants_module.mod DEPEND/lintran_constants_module.mod

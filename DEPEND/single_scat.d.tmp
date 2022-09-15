@@ -1,0 +1,2 @@
+OBJECTS/single_scat.o: \
+ SRC/remotec_core/GAUSDL/single_scat.f90 DEPEND/header_gsd.mod

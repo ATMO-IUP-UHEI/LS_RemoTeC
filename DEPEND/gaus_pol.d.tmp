@@ -1,0 +1,3 @@
+OBJECTS/gaus_pol.o: \
+ SRC/remotec_core/GAUSDL/gaus_pol.f90 DEPEND/header_gsd.mod \
+ DEPEND/gaus_mat_module.mod

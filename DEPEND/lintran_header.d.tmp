@@ -1,0 +1,2 @@
+OBJECTS/lintran_header.o: \
+ SRC/remotec_core/LINTRAN/lintran_header.f90

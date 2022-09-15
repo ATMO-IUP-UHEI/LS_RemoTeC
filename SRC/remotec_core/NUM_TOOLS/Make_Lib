@@ -1,0 +1,35 @@
+#  suffix rule for library file
+.f.a:
+	@$(FC) $(FFLAGS) $<
+	@ar -rv $@ $*.o
+	@rm $*.o
+ 
+ntools =   libNts.a(drealft.o)\
+           libNts.a(dpythag.o)\
+           libNts.a(dfour1.o)\
+           libNts.a(dsvdcmp.o)\
+           libNts.a(spline.o)\
+           libNts.a(linterp.o)\
+	   libNts.a(ludcmp.o)\
+           libNts.a(lubksb.o)\
+           libNts.a(sort.o)\
+	   libNts.a(qpythag.o)\
+           libNts.a(qsvdcmp.o)\
+           libNts.a(dtwofft.o)\
+	   libNts.a(indexx.o)       
+
+libNts.a: $(ntools)
+	@echo "library libNts.a is updated" 
+
+%.o: %.f
+	$(FC) $(FFLAGS) $<
+
+%.o: %.f90
+	$(FC) $(FFLAGS) $<
+
+
+
+
+
+
+

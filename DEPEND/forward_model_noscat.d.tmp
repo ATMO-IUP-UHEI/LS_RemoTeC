@@ -1,0 +1,5 @@
+OBJECTS/forward_model_noscat.o: \
+ SRC/remotec_core/forward_model_noscat.f90 DEPEND/header_module.mod \
+ DEPEND/aerosol_input_module.mod DEPEND/forward_model_module.mod \
+ DEPEND/read_xsdb_module.mod DEPEND/spectral_response_module.mod \
+ DEPEND/auxiliary_routines_module.mod DEPEND/ocean_fresnel_module.mod

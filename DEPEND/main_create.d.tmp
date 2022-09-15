@@ -1,0 +1,8 @@
+OBJECTS/main_create.o: SRC/sim_create/main_create.f90 DEPEND/header_module.mod \
+ DEPEND/read_settings_module.mod DEPEND/read_synsettings_module.mod \
+ DEPEND/solar_model_create_module.mod \
+ DEPEND/atmo_interface_create_module.mod \
+ DEPEND/atmosphere_internal_module.mod \
+ DEPEND/calculate_syn_spectrum_module.mod DEPEND/optic_cirrus_module.mod \
+ DEPEND/spec_interface_create_module.mod DEPEND/retrieval_module.mod \
+ DEPEND/read_miprep_module.mod

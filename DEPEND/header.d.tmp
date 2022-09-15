@@ -1,0 +1,3 @@
+OBJECTS/header.o: SRC/remotec_core/header.f90 \
+ SRC/remotec_core/INCLUDES/precision.inc \
+ SRC/remotec_core/INCLUDES/parameter.inc

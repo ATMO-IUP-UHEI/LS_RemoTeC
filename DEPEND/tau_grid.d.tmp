@@ -1,0 +1,6 @@
+OBJECTS/tau_grid.o: SRC/remotec_core/tau_grid.f90 \
+ DEPEND/header_module.mod DEPEND/aerosol_input_module.mod \
+ DEPEND/auxiliary_routines_module.mod DEPEND/aerosol_input_module.mod \
+ DEPEND/auxiliary_routines_module.mod \
+ DEPEND/auxiliary_routines_module.mod \
+ DEPEND/auxiliary_routines_module.mod

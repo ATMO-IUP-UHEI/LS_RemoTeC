@@ -1,0 +1,2 @@
+OBJECTS/read_synsettings.o: \
+ SRC/sim_create/read_synsettings.f90 DEPEND/header_module.mod

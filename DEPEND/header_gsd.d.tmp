@@ -1,0 +1,2 @@
+OBJECTS/header_gsd.o: \
+ SRC/remotec_core/GAUSDL/header_gsd.f90 DEPEND/header_module.mod

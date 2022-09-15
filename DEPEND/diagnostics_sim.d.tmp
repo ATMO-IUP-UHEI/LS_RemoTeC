@@ -1,0 +1,7 @@
+OBJECTS/diagnostics_sim.o: \
+ SRC/sim_retrieval/diagnostics_sim.f90 DEPEND/header_module.mod \
+ DEPEND/aerosol_input_module.mod DEPEND/synthetic_input_module.mod \
+ DEPEND/retrieval_module.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod \
+ DEPEND/spectrum_interface_module.mod \
+ DEPEND/auxiliary_routines_module.mod

@@ -1,0 +1,3 @@
+OBJECTS/aerosol_input_module.o: \
+ SRC/remotec_core/aerosol_input_module.f90 DEPEND/header_module.mod \
+ DEPEND/optic_cirrus_module.mod DEPEND/opticm_module.mod

@@ -1,0 +1,4 @@
+OBJECTS/gautool_acs.o: \
+ SRC/remotec_core/GAUSDL/gautool_acs.f90 DEPEND/header_gsd.mod \
+ DEPEND/header_gsd.mod DEPEND/header_gsd.mod DEPEND/header_gsd.mod \
+ DEPEND/header_gsd.mod

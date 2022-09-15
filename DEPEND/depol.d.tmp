@@ -1,0 +1,1 @@
+OBJECTS/depol.o: SRC/remotec_core/depol.f90 DEPEND/header_module.mod

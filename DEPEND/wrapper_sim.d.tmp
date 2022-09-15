@@ -1,0 +1,5 @@
+OBJECTS/wrapper_sim.o: \
+ SRC/sim_retrieval/wrapper_sim.f90 DEPEND/header_module.mod \
+ DEPEND/atmosphere_interface_module.mod DEPEND/retrieval_module.mod \
+ DEPEND/synthetic_input_module.mod DEPEND/spectrum_interface_module.mod \
+ DEPEND/solar_model_module.mod DEPEND/diagnostics_module.mod

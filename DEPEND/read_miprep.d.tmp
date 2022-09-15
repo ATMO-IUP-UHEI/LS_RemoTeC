@@ -1,0 +1,5 @@
+OBJECTS/read_miprep.o: \
+ SRC/remotec_core/read_miprep.f90 DEPEND/header_module.mod \
+ DEPEND/atmosphere_internal_module.mod DEPEND/forward_model_module.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod

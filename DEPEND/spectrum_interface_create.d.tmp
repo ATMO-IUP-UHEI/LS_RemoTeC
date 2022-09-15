@@ -1,0 +1,7 @@
+OBJECTS/spectrum_interface_create.o: \
+ SRC/sim_create/spectrum_interface_create.f90 DEPEND/header_module.mod \
+ DEPEND/read_settings_module.mod DEPEND/forward_model_module.mod \
+ DEPEND/atmosphere_internal_module.mod \
+ DEPEND/spectrum_internal_module.mod DEPEND/spectral_response_module.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod \
+ DEPEND/auxiliary_routines_module.mod

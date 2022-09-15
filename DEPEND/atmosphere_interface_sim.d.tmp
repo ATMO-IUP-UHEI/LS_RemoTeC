@@ -1,0 +1,5 @@
+OBJECTS/atmosphere_interface_sim.o: \
+ SRC/sim_retrieval/atmosphere_interface_sim.f90 DEPEND/header_module.mod \
+ DEPEND/read_settings_module.mod DEPEND/auxiliary_routines_module.mod \
+ DEPEND/atmosphere_internal_module.mod DEPEND/read_miprep_module.mod \
+ /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod

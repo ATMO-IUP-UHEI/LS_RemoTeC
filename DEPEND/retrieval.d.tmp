@@ -1,0 +1,4 @@
+OBJECTS/retrieval.o: SRC/remotec_core/retrieval.f90 \
+ DEPEND/header_module.mod DEPEND/profile_inversion_module.mod \
+ DEPEND/spectrum_internal_module.mod \
+ DEPEND/atmosphere_internal_module.mod
