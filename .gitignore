@@ -1,0 +1,5 @@
+MODULES/*.d
+MODULES/*.mod
+OBJECTS/*.o
+MODULES/*.mod
+SRC/remotec_core/NUM_TOOLS/libNts.a
