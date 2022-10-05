@@ -611,7 +611,7 @@ contains
           if(flag%output >=3 )then
              write(ch,'(i2.2)')n
              open(newunit(io),FILE='./CONTRL_OUT/spectrum_'//ch//'.dat')
-             write(io,'(A)')'# Wavelength / cm-1'
+             write(io,'(A)')'# Wavelength / nm'
              write(io,'(A)')'# Reflectance measured'
              write(io,'(A)')'# Reflectance noise'
              write(io,'(A)')'# Reflectance modelled'
