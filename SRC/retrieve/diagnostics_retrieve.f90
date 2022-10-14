@@ -24,7 +24,7 @@ contains
 
 !------------------------------------------------------------------------------
 
-   subroutine diagnostics_sim( &
+   subroutine diagnostics_retrieve( &
       output_dir, runid, &
       debug_output_flag, &
       spectrum_file, meteo_file, &
@@ -309,13 +309,13 @@ contains
          write (*, '(a)') '*****************************************'
       end if
 
-   end subroutine diagnostics_sim
+   end subroutine diagnostics_retrieve
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-   subroutine diagnostics_sim_nc_js( &
+   subroutine diagnostics_retrieve_nc_js( &
       output_dir, runid, &
       meteo_file, &
       win_ini, &
@@ -802,6 +802,6 @@ contains
          write (*, '(a)') '*****************************************'
       end if
 
-   end subroutine diagnostics_sim_nc_js
+   end subroutine diagnostics_retrieve_nc_js
 
 end module diagnostics_module

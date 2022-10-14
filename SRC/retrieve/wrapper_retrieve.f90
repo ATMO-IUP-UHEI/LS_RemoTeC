@@ -1,4 +1,4 @@
-module wrapper_sim_module
+module wrapper_retrieve_module
    use header_module
    use atmosphere_interface_module, only: atmospheric_scenario, read_atmosphere, read_atmosphere_nc_js, read_ecmwf, read_aux
    use retrieval_module, only: retrieval_data, retrieval, aero, &
@@ -7,11 +7,11 @@ module wrapper_sim_module
    use synthetic_input_module, only: instrument_errors, read_errors, synthetic_data, get_synthetic_data, get_synthetic_data_nc
   use spectrum_interface_module, only: spectrum, read_spectrum, read_l1b_nc_js, read_l1b, instrument_response, get_isrf_interpolated
    use solar_model_module, only: sun_spectrum, read_sun_netcdf, read_sun_tsis1_hsrs, interpolate_solar_spectrum
-   use diagnostics_module, only: diagnostics_sim, diagnostics_sim_nc_js
+   use diagnostics_module, only: diagnostics_retrieve, diagnostics_retrieve_nc_js
 
    implicit none
    private
-   public :: init_shared, free_shared, init_pixel, free_pixel, retrieve_sim, write_output
+   public :: init_shared, free_shared, init_pixel, free_pixel, retrieve_wrapper, write_output
 
 !------------------------------------------------------------------------------
 !> Shared data: same for each ground pixel
@@ -272,7 +272,7 @@ contains
 !------------------------------------------------------------------------------
 !> Call retrieval algorithm
 !------------------------------------------------------------------------------
-   subroutine retrieve_sim(fixed, varying, output, ierr)
+   subroutine retrieve_wrapper(fixed, varying, output, ierr)
       implicit none
       type(shared_data), pointer, intent(in) :: fixed
       type(pixel_data), pointer, intent(inout) :: varying
@@ -286,7 +286,7 @@ contains
                      fixed%aero_lut, fixed%cirrus_lut, &
                      output%retrieval_output, ierr)
 
-   end subroutine retrieve_sim
+   end subroutine retrieve_wrapper
 
 !------------------------------------------------------------------------------
 !> Deallocate memory of thread-specific data
@@ -314,7 +314,7 @@ contains
 
       if (atmflag .EQ. 4) then
          meteo_file = trim(fixedData%path%spectrum)//trim(varyingData%filename)
-         call diagnostics_sim_nc_js(fixedData%path%output, runid, &
+         call diagnostics_retrieve_nc_js(fixedData%path%output, runid, &
                                     meteo_file, &
                                     fixedData%win_ini, &
                                     outputData%syn_output, outputData%retrieval_output, varyingData%meta, &
@@ -322,7 +322,7 @@ contains
       else
          !    meteo_file = trim(fixedData%path%meteo)//trim(varyingData%filename)
          meteo_file = trim(fixedData%path%spectrum)//trim(varyingData%filename)
-         call diagnostics_sim( &
+         call diagnostics_retrieve( &
             fixedData%path%output, runid, fixedData%flag%output, &
             varyingData%spectrum_file, meteo_file, &
             fixedData%win_ini, &
@@ -332,4 +332,4 @@ contains
 
    end subroutine write_output
 !------------------------------------------------------------------------------
-end module wrapper_sim_module
+end module wrapper_retrieve_module

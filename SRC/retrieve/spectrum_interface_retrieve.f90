@@ -13,7 +13,7 @@ module spectrum_interface_module
 
 !*** Procedures
    public :: read_spectrum, read_l1b_nc_js, read_l1b, get_isrf_interpolated, instrument_interface
-   private :: spectral_response_create_gauss, read_isrf_sim, calculate_isrf
+   private :: spectral_response_create_gauss, read_isrf_retrieve, calculate_isrf
 
 contains
 
@@ -620,7 +620,7 @@ contains
       elseif (flag == 2) then !Read ISRF from custom NetCDF file
          do n = 1, nband
             write (ch, '(i2.2)') n
-            call read_isrf_sim(trim(filename)//'isrf_'//ch//'.nc', response, ierr)
+            call read_isrf_retrieve(trim(filename)//'isrf_'//ch//'.nc', response, ierr)
             if (ierr .ne. 0) goto 999
 
             do l = 1, size(win_ini)
@@ -763,7 +763,7 @@ contains
    end subroutine spectral_response_create_gauss
 
 !------------------------------------------------------------------------------
-   subroutine read_isrf_sim(filename, response, ierr)
+   subroutine read_isrf_retrieve(filename, response, ierr)
       character(len=*), intent(in) :: filename
       type(instrument_response), intent(out) :: response
       integer, intent(out) :: ierr
@@ -820,7 +820,7 @@ contains
       ierr = 0
       return
 
-   end subroutine read_isrf_sim
+   end subroutine read_isrf_retrieve
 
 !------------------------------------------------------------------------------
 end module spectrum_interface_module

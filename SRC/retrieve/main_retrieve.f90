@@ -4,7 +4,7 @@
 
 program main
    use header_module
-   use wrapper_sim_module
+   use wrapper_retrieve_module
    use read_miprep_module, only: open_miprep, close_miprep
    use omp_lib
    implicit none
@@ -75,7 +75,7 @@ program main
    do i = 1, nfile
       call init_pixel(fixedData, varyingData, outputData, atm(i), pixelid(i), ierr)
       if (ierr == 0) then
-         call retrieve_sim(fixedData, varyingData, outputData, ierr)
+         call retrieve_wrapper(fixedData, varyingData, outputData, ierr)
          !$OMP CRITICAL(writefile)
          call write_output(runID, fixedData, varyingData, fixedData%flag%atm, outputData)
          !$OMP END CRITICAL(writefile)

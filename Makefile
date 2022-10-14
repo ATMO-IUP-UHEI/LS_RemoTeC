@@ -19,12 +19,12 @@ FORT = IUP-gfortran
 
 # Directories for source files, object files, modules and dependency files
 srcdir = SRC
-coredir = $(srcdir)/remotec_core
+coredir = $(srcdir)/core
 ntdir = $(coredir)/NUM_TOOLS
 gsddir = $(coredir)/GAUSDL
 lntrndir = $(coredir)/LINTRAN
-simdir = $(srcdir)/sim_retrieval
-createdir = $(srcdir)/sim_create
+createdir = $(srcdir)/create
+retrievedir = $(srcdir)/retrieve
 objdir = ./OBJECTS
 moddir = ./MODULES
 depdir = ./DEPEND
@@ -110,7 +110,7 @@ sed -e 's|.*:|$@:|' < $(depdir)/$*.d.tmp > $(depdir)/$*.d; \
 cp -f $(depdir)/$*.d $(depdir)/$*.d.tmp;\
 sed -e 's/.*://' -e 's/\\$$//' < $(depdir)/$*.d.tmp | fmt -1 | \
 sed -e 's/^ *//' -e 's/$$/:/' >> $(depdir)/$*.d;\
-rm -f $(depdir)/$*.d.tmpp;\
+rm -f $(depdir)/$*.d.tmp;\
 rm -f $*.i90
 
 # object files
@@ -163,15 +163,6 @@ obj_lntrn = 	$(objdir)/lintran_header.o         	     \
 		$(objdir)/lintran_remotec_module.o           \
 		$(objdir)/lintran_module.o
 
-obj_sim =	$(objdir)/read_errors.o\
-		$(objdir)/spectrum_interface_sim.o\
-		$(objdir)/atmosphere_interface_sim.o\
-		$(objdir)/solar_model_sim.o\
-		$(objdir)/synthetic_input.o\
-		$(objdir)/diagnostics_sim.o\
-		$(objdir)/wrapper_sim.o\
-		$(objdir)/main_sim.o
-
 obj_create =	$(objdir)/spectrum_interface_create.o\
 		$(objdir)/atmosphere_interface_create.o\
 		$(objdir)/solar_model_create.o\
@@ -180,6 +171,14 @@ obj_create =	$(objdir)/spectrum_interface_create.o\
 		$(objdir)/calculate_syn_spectrum.o\
 		$(objdir)/main_create.o
 
+obj_retrieve =	$(objdir)/read_errors.o\
+		$(objdir)/spectrum_interface_retrieve.o\
+		$(objdir)/atmosphere_interface_retrieve.o\
+		$(objdir)/solar_model_retrieve.o\
+		$(objdir)/synthetic_input.o\
+		$(objdir)/diagnostics_retrieve.o\
+		$(objdir)/wrapper_retrieve.o\
+		$(objdir)/main_retrieve.o
 
 libraries =  $(ntdir)/libNts.a
 
@@ -203,18 +202,18 @@ num_tools =	$(ntdir)/drealft.f90\
 ############################################
 
 # Goal
-all: RemoTeC_create RemoTeC_sim
+all: RemoTeC_create RemoTeC_retrieve
 
 # link
 RemoTeC_create: $(obj_lntrn) $(obj_core) $(obj_create) $(libraries)
 	$(FC) $(obj_lntrn) $(obj_core) $(obj_create) $(LDFLAGS) $(libraries) -o RemoTeC_create
 
 # link
-RemoTeC_sim: $(obj_lntrn) $(obj_core) $(obj_sim) $(libraries)
-	$(FC) $(obj_lntrn) $(obj_core) $(obj_sim) $(LDFLAGS) $(libraries) -o RemoTeC_sim
+RemoTeC_retrieve: $(obj_lntrn) $(obj_core) $(obj_retrieve) $(libraries)
+	$(FC) $(obj_lntrn) $(obj_core) $(obj_retrieve) $(LDFLAGS) $(libraries) -o RemoTeC_retrieve
 
 # compile and generate dependency files:
-$(objdir)/%.o: $(simdir)/%.f90
+$(objdir)/%.o: $(coredir)/%.f90
 	$(makedep)
 	$(FC) $(FFLAGS) -o $@ $<
 
@@ -222,7 +221,7 @@ $(objdir)/%.o: $(createdir)/%.f90
 	$(makedep)
 	$(FC) $(FFLAGS) -o $@ $<
 
-$(objdir)/%.o: $(coredir)/%.f90
+$(objdir)/%.o: $(retrievedir)/%.f90
 	$(makedep)
 	$(FC) $(FFLAGS) -o $@ $<
 
@@ -235,10 +234,10 @@ $(objdir)/%.o: $(gsddir)/%.f90
 	$(FC) $(FFLAGS) -o $@ $<
 
 # Include dependency files
--include $(subst $(objdir), $(depdir), $(obj_lntrn:.o=.d))
 -include $(subst $(objdir), $(depdir), $(obj_core:.o=.d))
--include $(subst $(objdir), $(depdir), $(obj_sim:.o=.d))
 -include $(subst $(objdir), $(depdir), $(obj_create:.o=.d))
+-include $(subst $(objdir), $(depdir), $(obj_retrieve:.o=.d))
+-include $(subst $(objdir), $(depdir), $(obj_lntrn:.o=.d))
 
 # make library
 $(ntdir)/libNts.a: $(num_tools)
@@ -247,7 +246,10 @@ $(ntdir)/libNts.a: $(num_tools)
 .PHONY : clean
 clean:
 	-rm $(depdir)/*.d
+	-rm $(depdir)/*.d.tmp
 	-rm $(depdir)/*.mod
 	-rm $(objdir)/*.o
 	-rm $(moddir)/*.mod
 	-rm $(ntdir)/libNts.a
+	-rm RemoTeC_create
+	-rm RemoTeC_retrieve
