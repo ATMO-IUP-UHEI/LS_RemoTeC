@@ -2,4 +2,7 @@ MODULES/*.d
 MODULES/*.mod
 OBJECTS/*.o
 MODULES/*.mod
-SRC/remotec_core/NUM_TOOLS/libNts.a
+DEPEND/*.mod
+DEPEND/*.d
+DEPEND/*.d.tmp
+SRC/remotec_core/NUM_TOOLS/*.a

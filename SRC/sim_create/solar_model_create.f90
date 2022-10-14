@@ -13,7 +13,7 @@ module solar_model_create_module
    implicit none
    private
 
-   public :: sun_spectrum, read_sun_netcdf, interpolate_solar_spectrum !, solar_model, read_sun_ascii
+   public :: sun_spectrum, read_sun_netcdf, read_sun_tsis1_hsrs, interpolate_solar_spectrum !, solar_model, read_sun_ascii
 
 contains
    !------------------------------------------------------------------------------
@@ -185,6 +185,62 @@ contains
       return
 
    end subroutine read_sun_netcdf
+
+   !------------------------------------------------------------------------------
+   !> @brief Read reference irradiance from TSIS-1 HSRS NetCDF file (https://doi.org/10.1029/2020GL091709)
+   !> @param[in]  sun_file       file for reference irradiance
+   !> @param[out] sun_input      datatype for reference irradiance
+   !> @param[out]  ierr          error identifier: 0=normal, 1=error opening file, 2=error in reading, 3=allocation error
+   subroutine read_sun_tsis1_hsrs(sun_file, sun_input, ierr)
+      use netcdf
+      !*** Input
+      character(len=*), intent(in) :: sun_file
+      !*** Output
+      type(sun_spectrum), intent(out) :: sun_input
+      integer, intent(out) :: ierr
+      !*** Local
+      integer :: i, ncid, dimid, varid, nwave
+      real(double), dimension(:), allocatable :: wavelength, irradiance
+
+      !*** Open NetCDF LUT
+      call check(nf90_open(trim(sun_file), nf90_nowrite, ncid), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_inq_dimid(ncid, "wavelength", dimid), ierr)
+      call check(nf90_inquire_dimension(ncid, dimid, len=nwave), ierr)
+      allocate(&
+         wavelength(nwave),&
+         irradiance(nwave),&
+         sun_input%wavelength(nwave),&
+         sun_input%irradiance(nwave),&
+         stat=ierr)
+      if (ierr .ne. 0) then
+         ierr = ierr_all
+         call stopretrieval("READ_SUN_TSIS1_HSRS: memory allocation error")
+      end if
+
+      sun_input%nwave = nwave
+
+      call check(nf90_inq_varid(ncid, "Vacuum Wavelength", varid), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, varid, wavelength), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_inq_varid(ncid, "SSI", varid), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, varid, irradiance), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_close(ncid) ,ierr)
+
+      do i = 1, nwave
+         sun_input%wavelength(i) = wavelength(i)
+         sun_input%irradiance(i) = irradiance(i)
+      end do
+
+      ierr = 0
+      return
+   end subroutine
 
    !------------------------------------------------------------------------------
    !> @brief Read reference irradiance from KNMI's ascii file
