@@ -1,2 +1,0 @@
-OBJECTS/viewing.o: SRC/remotec_core/GAUSDL/viewing.f90 \
- DEPEND/header_gsd.mod

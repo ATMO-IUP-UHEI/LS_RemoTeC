@@ -1,3 +1,0 @@
-OBJECTS/perturbation.o: \
- SRC/remotec_core/GAUSDL/perturbation.f90 DEPEND/header_gsd.mod \
- DEPEND/header_module.mod DEPEND/header_gsd.mod

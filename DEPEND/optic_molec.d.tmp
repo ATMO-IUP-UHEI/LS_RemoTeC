@@ -1,3 +1,0 @@
-OBJECTS/optic_molec.o: \
- SRC/remotec_core/optic_molec.f90 DEPEND/header_module.mod \
- DEPEND/read_xsdb_module.mod

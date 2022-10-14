@@ -1,5 +1,0 @@
-OBJECTS/read_xsdb.o: SRC/remotec_core/read_xsdb.f90 \
- DEPEND/header_module.mod \
- /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod \
- /home/atmo/software/lib_gnu//hdf5-1.10.2/build//include/hdf5.mod \
- /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod

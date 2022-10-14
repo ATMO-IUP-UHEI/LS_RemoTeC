@@ -1,7 +1,0 @@
-OBJECTS/lintran_interface.o: \
- SRC/remotec_core/lintran_interface.f90 DEPEND/lintran_types_module.mod \
- DEPEND/lintran_module.mod DEPEND/lintran_remotec_module.mod \
- DEPEND/header_module.mod DEPEND/lintran_types_module.mod \
- DEPEND/header_module.mod DEPEND/lintran_header.mod \
- DEPEND/lintran_types_module.mod DEPEND/header_module.mod \
- DEPEND/lintran_types_module.mod

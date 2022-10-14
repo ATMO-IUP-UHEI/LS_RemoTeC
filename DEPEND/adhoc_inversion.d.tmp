@@ -1,3 +1,0 @@
-OBJECTS/adhoc_inversion.o: \
- SRC/remotec_core/adhoc_inversion.f90 DEPEND/header_module.mod \
- DEPEND/read_settings_module.mod DEPEND/auxiliary_routines_module.mod

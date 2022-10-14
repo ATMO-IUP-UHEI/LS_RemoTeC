@@ -1,2 +1,0 @@
-OBJECTS/pt_inversion.o: \
- SRC/remotec_core/pt_inversion.f90 DEPEND/header_module.mod

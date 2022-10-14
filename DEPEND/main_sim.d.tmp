@@ -1,3 +1,0 @@
-OBJECTS/main_sim.o: SRC/sim_retrieval/main_sim.f90 DEPEND/header_module.mod \
- DEPEND/wrapper_sim_module.mod DEPEND/read_miprep_module.mod \
- /usr/lib/gcc/x86_64-redhat-linux/4.8.5/finclude/omp_lib.mod

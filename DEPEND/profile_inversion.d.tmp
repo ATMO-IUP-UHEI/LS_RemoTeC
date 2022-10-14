@@ -1,4 +1,0 @@
-OBJECTS/profile_inversion.o: \
- SRC/remotec_core/profile_inversion.f90 DEPEND/header_module.mod \
- DEPEND/forward_model_module.mod DEPEND/forward_model_noscat_module.mod \
- DEPEND/pt_regularization_module.mod DEPEND/adhoc_inversion_module.mod

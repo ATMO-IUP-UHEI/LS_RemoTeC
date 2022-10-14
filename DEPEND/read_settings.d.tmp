@@ -1,3 +1,0 @@
-OBJECTS/read_settings.o: \
- SRC/remotec_core/read_settings.f90 DEPEND/header_module.mod \
- DEPEND/aerosol_input_module.mod DEPEND/read_xsdb_module.mod

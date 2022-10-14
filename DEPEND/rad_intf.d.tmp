@@ -1,5 +1,0 @@
-OBJECTS/rad_intf.o: \
- SRC/remotec_core/GAUSDL/rad_intf.f90 DEPEND/header_gsd.mod \
- DEPEND/gautool_acs_module.mod DEPEND/gaus_pol_module.mod \
- DEPEND/viewing_module.mod DEPEND/single_scat_module.mod \
- DEPEND/perturbation_module.mod

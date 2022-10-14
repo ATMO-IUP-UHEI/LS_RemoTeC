@@ -1,6 +1,0 @@
-OBJECTS/spectrum_interface_sim.o: \
- SRC/sim_retrieval/spectrum_interface_sim.f90 DEPEND/header_module.mod \
- DEPEND/read_settings_module.mod DEPEND/read_errors_module.mod \
- DEPEND/spectrum_internal_module.mod DEPEND/spectral_response_module.mod \
- DEPEND/auxiliary_routines_module.mod \
- /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod

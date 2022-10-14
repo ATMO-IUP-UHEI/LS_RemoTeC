@@ -1,4 +1,0 @@
-OBJECTS/spectrum_internal.o: \
- SRC/remotec_core/spectrum_internal.f90 DEPEND/header_module.mod \
- DEPEND/read_settings_module.mod DEPEND/spectral_response_module.mod \
- DEPEND/forward_model_module.mod

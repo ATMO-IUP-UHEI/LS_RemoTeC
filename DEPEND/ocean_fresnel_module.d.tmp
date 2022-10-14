@@ -1,3 +1,0 @@
-OBJECTS/ocean_fresnel_module.o: \
- SRC/remotec_core/ocean_fresnel_module.f90 DEPEND/header_module.mod \
- DEPEND/header_gsd.mod

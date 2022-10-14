@@ -1,7 +1,0 @@
-OBJECTS/rad_trans_intf.o: \
- SRC/remotec_core/rad_trans_intf.f90 DEPEND/header_module.mod \
- DEPEND/auxiliary_routines_module.mod DEPEND/read_settings_module.mod \
- DEPEND/optic_input_module.mod DEPEND/optic_molec_module.mod \
- DEPEND/tau_grid_module.mod DEPEND/rad_intf_module.mod \
- DEPEND/ocean_fresnel_module.mod DEPEND/header_gsd.mod \
- DEPEND/lintran_interface.mod

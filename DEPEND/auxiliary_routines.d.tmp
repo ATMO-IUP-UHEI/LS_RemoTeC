@@ -1,3 +1,0 @@
-OBJECTS/auxiliary_routines.o: \
- SRC/remotec_core/auxiliary_routines.f90 DEPEND/header_module.mod \
- /home/atmo/software/lib_gnu//netcdf-fortran-4.4.4/build//include/netcdf.mod
