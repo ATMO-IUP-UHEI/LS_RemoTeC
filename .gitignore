@@ -5,4 +5,4 @@ MODULES/*.mod
 DEPEND/*.mod
 DEPEND/*.d
 DEPEND/*.d.tmp
-SRC/remotec_core/NUM_TOOLS/*.a
+SRC/core/NUM_TOOLS/libNts.a
