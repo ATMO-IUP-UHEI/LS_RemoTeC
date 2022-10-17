@@ -202,14 +202,14 @@ num_tools =	$(ntdir)/drealft.f90\
 ############################################
 
 # Goal
-all: RemoTeC_create RemoTeC_retrieve
+all: create retrieve
 
 # link
-RemoTeC_create: $(obj_lntrn) $(obj_core) $(obj_create) $(libraries)
+create: $(obj_lntrn) $(obj_core) $(obj_create) $(libraries)
 	$(FC) $(obj_lntrn) $(obj_core) $(obj_create) $(LDFLAGS) $(libraries) -o RemoTeC_create
 
 # link
-RemoTeC_retrieve: $(obj_lntrn) $(obj_core) $(obj_retrieve) $(libraries)
+retrieve: $(obj_lntrn) $(obj_core) $(obj_retrieve) $(libraries)
 	$(FC) $(obj_lntrn) $(obj_core) $(obj_retrieve) $(LDFLAGS) $(libraries) -o RemoTeC_retrieve
 
 # compile and generate dependency files:
