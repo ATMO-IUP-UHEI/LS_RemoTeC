@@ -215,11 +215,11 @@ contains
 
       ! Extract index in x-dimension to be read
       i = INDEX(index_info, 'X')
-      read (index_info(i + 1:i + 3), '(I3)') sx
+      read (index_info(i + 1:i + 6), '(I6)') sx
 
       ! Extract index in y-dimension to be read
       i = INDEX(index_info, 'Y')
-      read (index_info(i + 1:i + 3), '(I3)') sy
+      read (index_info(i + 1:i + 6), '(I6)') sy
 
       if (outputflag >= 2) then
          call writelog('*** Start of READ_L1B_NC_JS ***', 1)

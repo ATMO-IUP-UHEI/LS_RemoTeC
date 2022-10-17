@@ -388,11 +388,11 @@ contains
 
       ! Extract index in x-dimension to be read
       i = INDEX(index_info, 'X')
-      read (index_info(i + 1:i + 3), '(I3)') sx
+      read (index_info(i + 1:i + 6), '(I6)') sx
 
       ! Extract index in y-dimension to be read
       i = INDEX(index_info, 'Y')
-      read (index_info(i + 1:i + 3), '(I3)') sy
+      read (index_info(i + 1:i + 6), '(I6)') sy
 
       write (runidstring, '(I6.6)') runid
       ncfile = trim(output_dir)//"RTC_OUT_"//runidstring//'.nc'

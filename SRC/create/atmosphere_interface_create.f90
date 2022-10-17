@@ -577,11 +577,11 @@ contains
 
       ! Extract index in x-dimension to be read
       i = INDEX(info, 'X')
-      read (info(i + 1:i + 3), '(I3)') sx
+      read (info(i + 1:i + 6), '(I6)') sx
 
       ! Extract index in y-dimension to be read
       i = INDEX(info, 'Y')
-      read (info(i + 1:i + 3), '(I3)') sy
+      read (info(i + 1:i + 6), '(I6)') sy
 
       if (time(1) .eq. 0) then
          time(1) = year
@@ -878,11 +878,11 @@ contains
 
       ! Extract index in x-dimension to be read
       i = INDEX(info, 'X')
-      read (info(i + 1:i + 3), '(I3)') sx
+      read (info(i + 1:i + 6), '(I6)') sx
 
       ! Extract index in y-dimension to be read
       i = INDEX(info, 'Y')
-      read (info(i + 1:i + 3), '(I3)') sy
+      read (info(i + 1:i + 6), '(I6)') sy
 
       ! ----------------------------------------------------------------------------- !
       ! ----------------------------------------------------------------------------- !
@@ -1171,11 +1171,11 @@ contains
 
       ! Extract index in x-dimension to be read
       i = INDEX(index_info, 'X')
-      read (index_info(i + 1:i + 3), '(I3)') sx
+      read (index_info(i + 1:i + 6), '(I6)') sx
 
       ! Extract index in y-dimension to be read
       i = INDEX(index_info, 'Y')
-      read (index_info(i + 1:i + 3), '(I3)') sy
+      read (index_info(i + 1:i + 6), '(I6)') sy
 
       natm = size(atm_scenario%z)
 

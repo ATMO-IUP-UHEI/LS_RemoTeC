@@ -238,11 +238,11 @@ contains
 
          ! Extract index in x-dimension to be read
          i = INDEX(info, 'X')
-         read (info(i + 1:i + 3), '(I3)') sx
+         read (info(i + 1:i + 6), '(I6)') sx
 
          ! Extract index in y-dimension to be read
          i = INDEX(info, 'Y')
-         read (info(i + 1:i + 3), '(I3)') sy
+         read (info(i + 1:i + 6), '(I6)') sy
 
          do n = 1, nwin
             if (win_ini(n)%albflag == 0) then   !surface albedo from satellite data
