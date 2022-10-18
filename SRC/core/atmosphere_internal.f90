@@ -103,9 +103,9 @@ contains
       nlay = grid%nlay
       nrt = nlay*grid%nrt
       natm = nrt*grid%natm
+      atm_retr%n = nlay
       atm_rt%n = nrt
       atm_xs%n = natm
-      atm_retr%n = nlay
 
       !*** local allocatables
       allocate (plev_atm(natm + 1), zlev_atm(natm + 1), tlev_atm(natm + 1), &
