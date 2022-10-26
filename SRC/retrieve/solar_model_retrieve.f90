@@ -194,6 +194,9 @@ contains
 
       call check(nf90_close(ncid) ,ierr)
 
+      ! Convert irradiance from W m-2 nm-1 to photons s-1 cm-2 nm-1
+      irradiance = irradiance * wavelength * 1d-9 / h_planck / c_light * 1d-4
+
       do i = 1, nwave
          sun_input%wavelength(i) = wavelength(i)
          sun_input%irradiance(i) = irradiance(i)

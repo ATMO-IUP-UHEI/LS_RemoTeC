@@ -33,6 +33,8 @@ module header_module
   !------------------------------------------------------------------------------
   !*** constants
   !------------------------------------------------------------------------------
+  real(double), parameter :: c_light = 299792458d0       ! speed of light in vacuum / m s-1
+  real(double), parameter :: h_planck = 6.62607015d-34   ! Planck's constant / m2 kg s-1
   real(double), parameter :: air_m =  28.97d-3             ! air mass
   real(double), parameter :: rg = 8.3144621d0              ! gas constant
   real(double), parameter :: grav = 9.80665d0              ! gravitational acceleration [m/s^2]
