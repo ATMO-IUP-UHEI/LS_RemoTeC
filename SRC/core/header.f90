@@ -114,6 +114,7 @@ module header_module
      !> Viewing geometry
      integer :: szaflag  ! Added by JS
      real(double) :: sza, iza, saz, iaz, phi
+     real(double) :: observer_height
 
   end type metadata
 

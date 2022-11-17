@@ -25,7 +25,7 @@ contains
 !------------------------------------------------------------------------------
    subroutine forward_model_hi_noscat( &
       XSFlag, O2Flag, Tflag, glintflag, &
-      sza, iza, phi, sfwind, iwin, &
+      sza, iza, phi, observer_location, observer_height, sfwind, iwin, &
       absorb, &
       atm_xs, &
       dvair, &
@@ -42,9 +42,9 @@ contains
       ExitXSFlag, &
       ierr)
       !*** Input
-      real(double), intent(in) :: sza, iza, phi, sfwind
+      real(double), intent(in) :: sza, iza, phi, observer_height, sfwind
       type(absorbers), intent(in) :: absorb
-      integer, intent(in) :: iwin, XSFlag, O2Flag, TFlag, glintflag
+      integer, intent(in) :: iwin, XSFlag, O2Flag, TFlag, glintflag, observer_location
       type(atmosphere), intent(in) :: atm_xs
       real(double), dimension(:), intent(in) :: dvair
       real(double), dimension(:), intent(in) :: dvair_old
@@ -60,7 +60,8 @@ contains
       real(double), dimension(:, :), intent(out) :: derivP_dummy! Reflectance derivatives wrt. P
       integer, intent(out) :: ExitXSFlag, ierr
       !*** local variables
-      integer :: i, j, k, l, m, n, n1, n2, natm
+      integer :: i, j, k, l, m, n, n1, n2, natm, natm_upwelling
+      real(double) :: amf_weight
       real(double) :: dP, dT, u0, w
       real(double), dimension(atm_xs%n) :: vmr_h2o
       real(double), dimension(win_ini(iwin)%nwave_hi) :: albedo_array   ! Integrated optical depth
@@ -77,6 +78,7 @@ contains
       real(double), dimension(:, :, :), allocatable :: cross_section_Pper
       real(double), dimension(atm_xs%n) :: pcor
       character*2 :: ch
+      character(stringlen) :: message
       real(double) :: uv
       real(double), dimension(:), allocatable :: bdrf_ss
       !------------------------------------------------------------------------------
@@ -195,9 +197,31 @@ contains
       end if
 
       !***Calculate air mass factor
+      ! u0 = cos(DBLE(sza)/180.*Pi) is an approximation for plane parallel atmosphere, Kasten and Young take into account spherical atmosphere
       call u0_kasten_and_young(dble(sza), u0)
-      !     u0 = cos(DBLE(sza)/180.*Pi)
-      amf = 1./cos(dble(iza)/180.*pi) + 1./u0
+
+      if (observer_location .eq. 0) then ! observer is in space
+         amf = 1./u0 + 1./cos(dble(iza)/180.*PI)
+      else if (observer_location .eq. 1) then ! observer is within the atmosphere
+         ! downwelling radiation
+         amf = 1./u0
+         ! upwelling radiation
+         ! find layer the observer is in
+         natm_upwelling = minloc(atm_xs%z, dim = 1, mask = (atm_xs%z > observer_height))
+         if (natm_upwelling == natm) then
+            ierr = ierr_var
+            write(message, *) 'FORWARD_MODEL_HI_NOSCAT: Error in measurement geometry: Observer height is lower than surface level.'
+            call stopretrieval(message)
+         end if
+         ! All layers below natm_upwelling + 1 are fully transected by upwelling beam of radiation
+         amf(:, natm_upwelling+1:natm) = amf(:, natm_upwelling+1:natm) + 1./cos(dble(iza)/180.*PI)
+         ! Observer is somewhere between layer boundaries natm_upwelling and natm_upwelling + 1.
+         ! This layer is only partly transected by upwelling beam of radiation.
+         ! Weigh layer logarithmically to account for pressure profile.
+         amf_weight = (log(observer_height) - log(atm_xs%z(natm_upwelling+1))) &
+                     /(log(atm_xs%z(natm_upwelling)) - log(atm_xs%z(natm_upwelling+1)))
+         amf(:, natm_upwelling) = amf(:, natm_upwelling) + amf_weight/cos(dble(iza)/180.*pi)
+      end if
 
       !***Calculate reflectance spectrum
       tau_int = 0.
@@ -206,6 +230,7 @@ contains
             tau_int(:) = tau_int(:) + cross_section(:, n, i)*win(iwin)%x_molec(n, i)*amf(:, n)
          end do
       end do
+
       !***If ocean-glint: bidirectional reflection distr. functions calculated from the ocean model
       if (glintflag == 1) then
          uv = DCOS(dble(iza)/180.*pi)

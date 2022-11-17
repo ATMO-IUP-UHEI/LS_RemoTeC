@@ -34,9 +34,9 @@ module atmosphere_internal_module
 contains
    !------------------------------------------------------------------------------
    !> @details Interpolate the input atmosphere to higher resolution pressure grids:
-  !! natm = number of layers for which absorption cross sections are calculated
-  !! nrt = number of layers used in RT code
   !! nlay = number of retrieval layers
+  !! nrt = number of layers used in RT code
+  !! natm = number of layers for which absorption cross sections are calculated
   !! Calculate initial partial columns of absorbers (win%dv_x) from atmospheric input
    !------------------------------------------------------------------------------
    subroutine atmosphere_interpolate( &
@@ -63,9 +63,9 @@ contains
       !***in/output
       type(window_spectrum), dimension(:), intent(inout) :: win
       !*** output
+      type(atmosphere), intent(out) :: atm_retr
       type(atmosphere), intent(out) :: atm_rt
       type(atmosphere), intent(out) :: atm_xs
-      type(atmosphere), intent(out) :: atm_retr
       real(double), dimension(:), allocatable, intent(out) :: dvair   ! Partial air column, subject to change in O2 retrieval (Dim: natm)
       real(double), intent(out) :: z_tropopause, z_bl
       integer, intent(out) :: ierr
@@ -236,6 +236,7 @@ contains
          ierr = ierr_intrpl
          goto 999
       end if
+      atm_xs%z = zlev_atm
       call spline_interpol(DLOG(atm_input%p), atm_input%t, ninput + 1, &
                            DLOG(plev_atm), tlev_atm, natm + 1, ierr)
       if (ierr .ne. 0) then

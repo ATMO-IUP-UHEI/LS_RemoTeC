@@ -436,7 +436,7 @@ contains
             allocate (derivP_hi(win_ini(n)%nwave_hi, nlay))
             call forward_model_hi_noscat( &
                flag%xs, flag%O2, flag%temp, glintflag, &
-               meta%sza, meta%iza, meta%phi, wspeed, n, &
+               meta%sza, meta%iza, meta%phi, flag%observer_location, meta%observer_height, wspeed, n, &
                absorb, atm_xs, dvair, dvair_old, vmr_h2o, play_old, &
                win_ini, win, reflectance_hi, &
                derivatives_hi, deriv_albedo_hi, derivT_hi, derivP_hi, ExitXSFlag, ierr)

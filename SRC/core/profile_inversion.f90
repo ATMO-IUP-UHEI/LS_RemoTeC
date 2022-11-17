@@ -582,7 +582,7 @@ contains
           elseif (flag%scat == 0) then
              call forward_model_hi_noscat( &
                   flag%xs, flag%O2, flag%temp, glintflag, &
-                  win(n)%sza, win(n)%iza, win(n)%phi, wspeed, n, &
+                  win(n)%sza, win(n)%iza, win(n)%phi, flag%observer_location, win(n)%observer_height, wspeed, n, &
                   absorb, atm_xs, dvair, dvair_old, vmr_h2o, play_old, &
                   win_ini, win, reflectance_hi, &
                   deriv_hi(n)%densmol(:,:,:,1), deriv_hi(n)%alb(:,:,1), deriv_hi(n)%T(:,1), deriv_hi(n)%P(:,:,1), &

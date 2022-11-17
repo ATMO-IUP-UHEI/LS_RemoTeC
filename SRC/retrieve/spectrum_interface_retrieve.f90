@@ -182,10 +182,11 @@ contains
 !------------------------------------------------------------------------------
 !>
 !------------------------------------------------------------------------------
-   subroutine read_l1b_nc_js(infile, outputflag, measurement, meta, ierr, win_ini, instr_errors)
+   subroutine read_l1b_nc_js(infile, outputflag, measurement, meta, ierr, observer_location, win_ini, instr_errors)
       !** Input
       character(len=*), intent(in) :: infile
       integer, intent(in) :: outputflag
+      integer, intent(in) :: observer_location
       type(window_ini), dimension(:), intent(in), optional :: win_ini
       type(instrument_errors), dimension(:), intent(in), optional :: instr_errors
       !*** Output
@@ -200,7 +201,7 @@ contains
       integer, dimension(:), allocatable :: pixelid
       integer :: ncid, grpid(3), varid, dimid_lat, dimid_lon, dimid_time, dimid_wave
       integer :: sx, sy, start2d(2), start3d(3)
-      integer :: time_id, sza_id, vza_id, saz_id, vaz_id, lon_id, lat_id, elev_id
+      integer :: time_id, sza_id, vza_id, saz_id, vaz_id, observer_height_id, lon_id, lat_id, elev_id
       real(double), dimension(:), allocatable :: var
       character(stringlen) :: spectrum_file, index_info, message
 
@@ -245,6 +246,10 @@ contains
       if (ierr .ne. 0) return
       call check(nf90_inq_varid(ncid, "vaa", vaz_id), ierr)
       if (ierr .ne. 0) return
+      if (observer_location .eq. 1) then
+         call check(nf90_inq_varid(ncid, "observer_height", observer_height_id), ierr)
+         if (ierr .ne. 0) return
+      end if
 
       call check(nf90_get_var(ncid, sza_id, meta%sza, start=start2d), ierr)
       if (ierr .ne. 0) return
@@ -255,6 +260,10 @@ contains
       call check(nf90_get_var(ncid, vaz_id, meta%iaz, start=start2d), ierr)
       if (ierr .ne. 0) return
       meta%phi = dabs(meta%iaz - meta%saz)
+      if (observer_location .eq. 1) then
+         call check(nf90_get_var(ncid, observer_height_id, meta%observer_height, start=start2d), ierr)
+         if (ierr .ne. 0) return
+      end if
 
       !*** Geodata
       call check(nf90_inq_varid(ncid, "latitude", lat_id), ierr)
@@ -290,6 +299,7 @@ contains
       measurement(:)%sza = meta%sza
       measurement(:)%iza = meta%iza
       measurement(:)%phi = meta%phi
+      measurement(:)%observer_height = meta%observer_height
 
       start3d = (/1, sx, sy/)
 

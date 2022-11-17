@@ -34,7 +34,7 @@ module forward_model_module
    !------------------------------------------------------------------------------
    type :: window_spectrum
       !> Geometry
-      real(double) :: sza, iza, phi
+      real(double) :: sza, iza, phi, observer_height
 
       !*** Derivatives
       !> Lo-res reflectance/radiance derivatives wrt absorber partial column (Dim: nwave_lo)

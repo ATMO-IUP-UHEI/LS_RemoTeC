@@ -65,7 +65,7 @@ module read_settings_module
    end type regularization_class
    
    type :: settings_flags
-      integer ::  atm, scat, rtm, inv, XS, xs_preprocess, sun, O2, temp, Fs, ils, ilscalc, solar, fit, oceanglint, glintscat, output, coreg
+      integer ::  atm, scat, rtm, inv, XS, xs_preprocess, sun, O2, temp, Fs, ils, ilscalc, observer_location, solar, fit, oceanglint, glintscat, output, coreg
       type(regularization_class) :: reg
    end type settings_flags
 
@@ -214,6 +214,7 @@ module read_settings_module
       flag%output = 0
       flag%ils = 1
       flag%ilscalc = 1
+      flag%observer_location = 0
       flag%solar = 0
       flag%fit = 2
       flag%xs_preprocess = 1

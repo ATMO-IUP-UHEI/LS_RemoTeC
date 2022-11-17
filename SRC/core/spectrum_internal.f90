@@ -16,6 +16,7 @@ module spectrum_internal_module
   !> Spectral measurement
   type :: spectrum
      real(double) :: sza, iza, phi                               !< Instrument geometry                                 [degree]
+     real(double) :: observer_height                              !< Instrument geometry                                [m]
 !     real(double) :: fwhm                                        !< Width of instrument function                        [nm]
      !real(double), dimension(:), allocatable :: wavelength	  !rrae: OCO2 calibration in wavelength
      real(double), dimension(:), allocatable :: wavelength       !< wavelength grid                                     [nm]
@@ -90,6 +91,7 @@ contains
                 win(n)%sza = measurement(i)%sza
                 win(n)%iza = measurement(i)%iza
                 win(n)%phi = measurement(i)%phi
+                win(n)%observer_height = measurement(i)%observer_height
                 if (nstokes_l1b>1) win(n)%measurement_stokesc = measurement(i)%measurement_stokesc
                 goto 100
              endif
