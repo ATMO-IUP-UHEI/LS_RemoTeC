@@ -656,11 +656,11 @@ contains
        endif
 
        !*** STOP Iteration ?
-       !        residual = DABS(sum(x_state(1:nlay*absorb%ntype_target))/sum(x_state_old(1:nlay*absorb%ntype_target))-1.)
-       residual = abs(sum(x_state(:))/sum(x_state_old(:))-1.)
+        residual = DABS(sum(x_state(1:nlay*absorb%ntype_target))/sum(x_state_old(1:nlay*absorb%ntype_target))-1.)
+       !residual = abs(sum(x_state(:))/sum(x_state_old(:))-1.)
        if (iter > nlsq+1) then
-          !            state_stop = DSQRT(sum(s_state(1:nlay*absorb%ntype_target,1:nlay*absorb%ntype_target)))/sum(x_apr(1:nlay*absorb%ntype_target))
-          state_stop = sqrt(sum(s_state(:,:)))/sum(x_apr(:))
+          state_stop = 5.D-1*DSQRT(sum(s_state(1:nlay*absorb%ntype_target,1:nlay*absorb%ntype_target)))/sum(x_apr(1:nlay*absorb%ntype_target))
+          !state_stop = sqrt(sum(s_state(:,:)))/sum(x_apr(:))
        endif
 
        !*** Only consider convergence if Levenberg-Marquard constraint is zero
