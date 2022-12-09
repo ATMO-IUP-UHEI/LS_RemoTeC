@@ -299,7 +299,7 @@ module pt_regularization_module
 !*** Check for hitting the boundaries
       do i=1,nx
          if(x_i(i)<lowbd(i))then
-!!            print*, 'LM: HIT LOWER BOUNDARY: ',i,lowbd(i),x_i(i)
+            print*, 'PT_INVERSION: LM: HIT LOWER BOUNDARY: ',i,lowbd(i),x_i(i)
             x_i(i) = lowbd(i)
             if(i>nx-naer .and. Boundary_Flag==0) then
                Boundary_Flag=1
@@ -307,7 +307,7 @@ module pt_regularization_module
                Boundary_Flag=2
             endif
          elseif(x_i(i)>upbd(i)) then
-!!            print*, 'LM: HIT UPPER BOUNDARY: ',i,upbd(i),x_i(i)
+            print*, 'PT_INVERSION: LM: HIT UPPER BOUNDARY: ',i,upbd(i),x_i(i)
             x_i(i) = upbd(i)
             if(i>nx-naer .and. Boundary_Flag==0) then
                Boundary_Flag = 1
@@ -568,7 +568,7 @@ module pt_regularization_module
       do i = 1, nx
          if(x_i(i)<lowbd(i))then
 !	    if(outputflag >= 2) then
-               write(message,'(a,x,i2.2,x,2(1pE24.8e3,X))')'LM: HIT LOWER BOUNDARY: ',i,lowbd(i),x_i(i)
+               write(message,'(a,x,i2.2,x,2(1pE24.8e3,X))')'TSVD_INVERSION: LM: HIT LOWER BOUNDARY: ',i,lowbd(i),x_i(i)
                call writelog(message, 5)
 !            endif
             x_i(i) = lowbd(i)
@@ -579,7 +579,7 @@ module pt_regularization_module
             endif
          elseif(x_i(i)>upbd(i)) then
 !	    if(outputflag >= 2) then
-               write(message,'(a,x,i2.2,x,2(1pE24.8e3,X))')'LM: HIT UPPER BOUNDARY: ',i,upbd(i),x_i(i)
+               write(message,'(a,x,i2.2,x,2(1pE24.8e3,X))')'TSVD_INVERSION: LM: HIT UPPER BOUNDARY: ',i,upbd(i),x_i(i)
                call writelog(message, 5)
 !            endif
             x_i(i) = upbd(i)
