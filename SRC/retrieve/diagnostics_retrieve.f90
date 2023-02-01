@@ -61,6 +61,7 @@ contains
       character(99), dimension(size(retrieval_output%type_x_target)) :: x_name
       character(99), dimension(11) :: x_in_name
       real(double) :: x_air
+      real(double) :: psf
       !---------------------------------------------------------------------------------
 
       x_in_flag(:) = 0
@@ -155,6 +156,9 @@ contains
 
       end do
 
+      !*** Surface pressure
+      psf = retrieval_output%p(nlay + 1)
+
       do k = 1, 11
          if (x_in_flag(k) .EQ. 1) ntype_target_in = ntype_target_in + 1
       end do
@@ -246,7 +250,7 @@ contains
 
       formatstring = '(A,x,'                                                       !! Spectrum_file
       formatstring = trim(formatstring)//'3(I5,x),'                                !! YYYY, MM, DD
-      formatstring = trim(formatstring)//'4(1pE16.8E3,x),'                         !! LAT, LON, SZA, AIRMASS
+      formatstring = trim(formatstring)//'5(1pE16.8E3,x),'                         !! LAT, LON, SZA, AIRMASS, PSF
       formatstring = trim(formatstring)//'3(I5,x),'                                !! FLAG_CONVERGENCE, NUMBER_OF_ITERATIONS, ERROR_ID
       formatstring = trim(formatstring)//'4(1pE16.8E3,x),'                         !! CHI2, DFS, DFS_TARGET, DFS_SCAT
       formatstring = trim(formatstring)//'1(I5,x),'                                !! NWIN
@@ -285,6 +289,7 @@ contains
          meta%lon(1), &
          sza, &
          x_air, &
+         psf, &
          retrieval_output%convergence, &
          retrieval_output%iter, &
          retrieval_output%error_ID, &
@@ -349,12 +354,13 @@ contains
       character(99), dimension(:), allocatable :: x_name, x_unit
       integer :: sx, sy
       integer :: ncid, ierr, stat, ngroup, dimid_nobs, dimid_wave, lastindex, dimid_time, nwave
-      integer :: sza_id, vza_id, xair_id, lat_id, lon_id, time_id, x_id, y_id
+      integer :: sza_id, vza_id, xair_id, psf_id, lat_id, lon_id, time_id, x_id, y_id
       integer :: cf_id, chi_id, dfs_id, dfss_id, dfst_id, eid_id, it_id
   integer, dimension(:), allocatable :: grpid, wave_id, ot_id, cot_id, alb_id, otin_id, cotin_id, albin_id, tc_id, tcerr_id, tcin_id
       character*1 :: ch
       character(stringlen) :: group_name, index_info
       real(double) :: x_air
+      real(double) :: psf
       !-----------------------------------------------------------
 
       nwin = size(win_ini)
@@ -460,6 +466,9 @@ contains
             k = 11
          end if
 
+         !*** surface pressure
+         psf = retrieval_output%p(nlay + 1)
+
          if (scale == 1.) then
             x_unit(j) = '1'
          elseif (scale == 1.E2) then
@@ -560,6 +569,11 @@ contains
          call check(nf90_def_var(ncid, "airmass", NF90_float, dimid_nobs, xair_id), stat)
          call check(nf90_put_att(ncid, xair_id, "unit", "molec.cm-2"), stat)
          call check(nf90_put_att(ncid, xair_id, "description", "Airmass vertically integrated"), stat)
+
+         !*** Surface Pressure
+         call check(nf90_def_var(ncid, "surface_pressure", NF90_float, dimid_nobs, psf_id), stat)
+         call check(nf90_put_att(ncid, psf_id, "unit", "hPa"), stat)
+         call check(nf90_put_att(ncid, psf_id, "description", "Surface pressure"), stat)
 
          !*** Geodata
          call check(nf90_def_var(ncid, "latitude", NF90_float, dimid_nobs, lat_id), stat)
@@ -690,6 +704,9 @@ contains
          !*** Airmass
          call check(nf90_inq_varid(ncid, "airmass", xair_id), stat)
 
+         !*** Surface Pressure
+         call check(nf90_inq_varid(ncid, "surface_pressure", psf_id), stat)
+
          !*** Geodata
          call check(nf90_inq_varid(ncid, "latitude", lat_id), stat)
          call check(nf90_inq_varid(ncid, "longitude", lon_id), stat)
@@ -752,6 +769,9 @@ contains
 
       !*** Airmass
       call check(nf90_put_var(ncid, xair_id, x_air, start=(/lastindex/)), stat)
+
+      !*** Surface Pressure
+      call check(nf90_put_var(ncid, psf_id, psf, start=(/lastindex/)), stat)
 
       !*** Geodata
       call check(nf90_put_var(ncid, lat_id, meta%lat(1), start=(/lastindex/)), stat)
