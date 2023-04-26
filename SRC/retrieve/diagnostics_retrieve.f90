@@ -509,7 +509,7 @@ contains
 
       do i = 1, ntype_target
          do j = 1, len(x_name(i))
-            k = ichar(x_name(1) (j:j))
+            k = ichar(x_name(i) (j:j))
             if (k >= 65 .and. k < 90) x_name(1) (j:j) = char(k + 32)
          end do
       end do
