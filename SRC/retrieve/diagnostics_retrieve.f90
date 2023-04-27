@@ -355,8 +355,8 @@ contains
       integer :: sx, sy
       integer :: ncid, ierr, stat, ngroup, dimid_nobs, dimid_wave, lastindex, dimid_time, nwave
       integer :: sza_id, vza_id, xair_id, psf_id, lat_id, lon_id, time_id, x_id, y_id
-      integer :: cf_id, chi_id, dfs_id, dfss_id, dfst_id, eid_id, it_id
-  integer, dimension(:), allocatable :: grpid, wave_id, ot_id, cot_id, alb_id, otin_id, cotin_id, albin_id, tc_id, tcerr_id, tcin_id
+      integer :: cf_id, chi_id, dfs_id, dfss_id, eid_id, it_id
+      integer, dimension(:), allocatable :: grpid, wave_id, ot_id, cot_id, alb_id, otin_id, cotin_id, albin_id, tc_id, dfst_id, tcerr_id, tcin_id
       character*1 :: ch
       character(stringlen) :: group_name, index_info
       real(double) :: x_air
@@ -540,6 +540,7 @@ contains
                 cotin_id(nwin), &
                 albin_id(nwin), &
                 tc_id(ntype_target), &
+                dfst_id(ntype_target), &
                 tcerr_id(ntype_target), &
                 tcin_id(ntype_target_in))
 
@@ -605,29 +606,27 @@ contains
          !*** Quality measures
          call check(nf90_def_var(ncid, "chi2", NF90_float, dimid_nobs, chi_id), stat)
          call check(nf90_def_var(ncid, "dfs", NF90_float, dimid_nobs, dfs_id), stat)
-         call check(nf90_def_var(ncid, "dfs_target", NF90_float, dimid_nobs, dfst_id), stat)
          call check(nf90_def_var(ncid, "dfs_scat", NF90_float, dimid_nobs, dfss_id), stat)
 
          call check(nf90_put_att(ncid, chi_id, "unit", "-"), stat)
          call check(nf90_put_att(ncid, chi_id, "description", "chi-squared quality measure of retrieval"), stat)
          call check(nf90_put_att(ncid, dfs_id, "unit", "-"), stat)
          call check(nf90_put_att(ncid, dfs_id, "description", "Degrees of freedom for retrieval"), stat)
-         call check(nf90_put_att(ncid, dfst_id, "unit", "-"), stat)
-         call check(nf90_put_att(ncid, dfst_id, "description", "Degrees of freedom for target retrieval"), stat)
          call check(nf90_put_att(ncid, dfss_id, "unit", "-"), stat)
          call check(nf90_put_att(ncid, dfss_id, "description", "Degrees of freedom for scattering retrieval"), stat)
 
-         !*** Retrieved gas concentrations and corresponding retrievals errors
+         !*** Retrieved gas concentrations and corresponding retrievals errors and corresponding degrees of freedom
          do n = 1, ntype_target
             call check(nf90_def_var(ncid, trim('x_')//trim(x_name(n)), NF90_float, dimid_nobs, tc_id(n)), stat)
             call check(nf90_def_var(ncid, trim('x_')//trim(x_name(n))//trim('_err'), NF90_float, dimid_nobs, tcerr_id(n)), stat)
+            call check(nf90_def_var(ncid, trim('dfst_')//trim(x_name(n)), nf90_float, dimid_nobs, dfst_id(n)), stat)
 
             call check(nf90_put_att(ncid, tc_id(n), "unit", trim(x_unit(n))), stat)
-      call check(nf90_put_att(ncid, tc_id(n), "description", "Retrieved column-averaged dry-air mole fraction of target gas"), stat)
-
+            call check(nf90_put_att(ncid, tc_id(n), "description", "Retrieved column-averaged dry-air mole fraction of target gas"), stat)
             call check(nf90_put_att(ncid, tcerr_id(n), "unit", trim(x_unit(n))), stat)
-             call check(nf90_put_att(ncid, tcerr_id(n), "description", "Random noise error of retrieved column-averaged dry-air mole fraction of target gas"), stat)
-
+            call check(nf90_put_att(ncid, tcerr_id(n), "description", "Random noise error of retrieved column-averaged dry-air mole fraction of target gas"), stat)
+            call check(nf90_put_att(ncid, dfst_id(n), "unit", "-"), stat)
+            call check(nf90_put_att(ncid, dfst_id(n), "description", "Degrees of freedom for target retrieval"), stat)
          end do
 
          !*** Input gas concentrations
@@ -658,9 +657,9 @@ contains
             call check(nf90_def_var(grpid(n), "ot", NF90_float, dimid_nobs, ot_id(n)), stat)
             call check(nf90_def_var(grpid(n), "cot", NF90_float, dimid_nobs, cot_id(n)), stat)
             call check(nf90_def_var(grpid(n), "alb", NF90_float, dimid_nobs, alb_id(n)), stat)
-            call check(nf90_def_var(grpid(n), "ot_inp", NF90_float, dimid_nobs, otin_id(n)), stat)
-            call check(nf90_def_var(grpid(n), "cot_inp", NF90_float, dimid_nobs, cotin_id(n)), stat)
-            call check(nf90_def_var(grpid(n), "alb_inp", NF90_float, dimid_nobs, albin_id(n)), stat)
+            !call check(nf90_def_var(grpid(n), "ot_inp", NF90_float, dimid_nobs, otin_id(n)), stat)
+            !call check(nf90_def_var(grpid(n), "cot_inp", NF90_float, dimid_nobs, cotin_id(n)), stat)
+            !call check(nf90_def_var(grpid(n), "alb_inp", NF90_float, dimid_nobs, albin_id(n)), stat)
 
             call check(nf90_put_att(grpid(n), wave_id(n), "unit", "nm"), stat)
             call check(nf90_put_att(grpid(n), wave_id(n), "description", "Wavelength grid of spectrum"), stat)
@@ -672,12 +671,12 @@ contains
             call check(nf90_put_att(grpid(n), alb_id(n), "unit", "-"), stat)
             call check(nf90_put_att(grpid(n), alb_id(n), "description", "Retrieved surface albedo"), stat)
 
-            call check(nf90_put_att(grpid(n), otin_id(n), "unit", "-"), stat)
-            call check(nf90_put_att(grpid(n), otin_id(n), "description", "Total optical thickness used to simulate spectrum"), stat)
-            call check(nf90_put_att(grpid(n), cotin_id(n), "unit", "-"), stat)
-          call check(nf90_put_att(grpid(n), cotin_id(n), "description", "Cirrus optical thickness used to simulate spectrum"), stat)
-            call check(nf90_put_att(grpid(n), albin_id(n), "unit", "-"), stat)
-            call check(nf90_put_att(grpid(n), albin_id(n), "description", "Surface albedo used to simulate spectrum"), stat)
+            !call check(nf90_put_att(grpid(n), otin_id(n), "unit", "-"), stat)
+            !call check(nf90_put_att(grpid(n), otin_id(n), "description", "Total optical thickness used to simulate spectrum"), stat)
+            !call check(nf90_put_att(grpid(n), cotin_id(n), "unit", "-"), stat)
+            !call check(nf90_put_att(grpid(n), cotin_id(n), "description", "Cirrus optical thickness used to simulate spectrum"), stat)
+            !call check(nf90_put_att(grpid(n), albin_id(n), "unit", "-"), stat)
+            !call check(nf90_put_att(grpid(n), albin_id(n), "description", "Surface albedo used to simulate spectrum"), stat)
 
             !*** write spectral grid
             call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
@@ -719,13 +718,13 @@ contains
          !*** Quality measures
          call check(nf90_inq_varid(ncid, "chi2", chi_id), stat)
          call check(nf90_inq_varid(ncid, "dfs", dfs_id), stat)
-         call check(nf90_inq_varid(ncid, "dfs_target", dfst_id), stat)
          call check(nf90_inq_varid(ncid, "dfs_scat", dfss_id), stat)
 
          !*** Retrieved gas concentrations and corresponding retrievals errors
          do n = 1, ntype_target
             call check(nf90_inq_varid(ncid, trim('x_')//trim(x_name(n)), tc_id(n)), stat)
             call check(nf90_inq_varid(ncid, trim('x_')//trim(x_name(n))//trim('_err'), tcerr_id(n)), stat)
+            call check(nf90_inq_varid(ncid, trim("dfst_")//trim(x_name(n)), dfst_id(n)), stat)
          end do
 
          !*** Input gas concentrations
@@ -745,9 +744,9 @@ contains
             call check(nf90_inq_varid(grpid(n), "ot", ot_id(n)), stat)
             call check(nf90_inq_varid(grpid(n), "cot", cot_id(n)), stat)
             call check(nf90_inq_varid(grpid(n), "alb", alb_id(n)), stat)
-            call check(nf90_inq_varid(grpid(n), "ot_inp", otin_id(n)), stat)
-            call check(nf90_inq_varid(grpid(n), "cot_inp", cotin_id(n)), stat)
-            call check(nf90_inq_varid(grpid(n), "alb_inp", albin_id(n)), stat)
+            !call check(nf90_inq_varid(grpid(n), "ot_inp", otin_id(n)), stat)
+            !call check(nf90_inq_varid(grpid(n), "cot_inp", cotin_id(n)), stat)
+            !call check(nf90_inq_varid(grpid(n), "alb_inp", albin_id(n)), stat)
          end do
 
          !*** Get number of spectra already in file
@@ -785,13 +784,13 @@ contains
       !*** Quality measures
       call check(nf90_put_var(ncid, chi_id, chi2, start=(/lastindex/)), stat)
       call check(nf90_put_var(ncid, dfs_id, retrieval_output%dfs, start=(/lastindex/)), stat)
-      call check(nf90_put_var(ncid, dfst_id, retrieval_output%dfs_target, start=(/lastindex/)), stat)
       call check(nf90_put_var(ncid, dfss_id, retrieval_output%dfs_scat, start=(/lastindex/)), stat)
 
-      !*** Retrieved gas concentrations and corresponding retrievals errors
+      !*** Retrieved gas concentrations and corresponding retrievals errors and corresponding degrees of freedom
       do n = 1, ntype_target
          call check(nf90_put_var(ncid, tc_id(n), x(n), start=(/lastindex/)), stat)
          call check(nf90_put_var(ncid, tcerr_id(n), x_err(n), start=(/lastindex/)), stat)
+         call check(nf90_put_var(ncid, dfst_id(n), retrieval_output%dfs_target(n), start=(/lastindex/)), stat)
       end do
 
       !*** Input gas concentrations
@@ -807,9 +806,9 @@ contains
          call check(nf90_put_var(grpid(n), ot_id(n), retrieval_output%ot(n), start=(/lastindex/)), stat)
          call check(nf90_put_var(grpid(n), cot_id(n), retrieval_output%cot(n), start=(/lastindex/)), stat)
          call check(nf90_put_var(grpid(n), alb_id(n), retrieval_output%albedo(n), start=(/lastindex/)), stat)
-         call check(nf90_put_var(grpid(n), otin_id(n), ot_in, start=(/lastindex/)), stat)
-         call check(nf90_put_var(grpid(n), cotin_id(n), cot_in, start=(/lastindex/)), stat)
-         call check(nf90_put_var(grpid(n), albin_id(n), alb_in, start=(/lastindex/)), stat)
+         !call check(nf90_put_var(grpid(n), otin_id(n), ot_in, start=(/lastindex/)), stat)
+         !call check(nf90_put_var(grpid(n), cotin_id(n), cot_in, start=(/lastindex/)), stat)
+         !call check(nf90_put_var(grpid(n), albin_id(n), alb_in, start=(/lastindex/)), stat)
       end do
 
       ! Close NetCDF file
