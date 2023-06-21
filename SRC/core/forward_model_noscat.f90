@@ -197,7 +197,8 @@ contains
       end if
 
       !***Calculate air mass factor
-      ! u0 = cos(DBLE(sza)/180.*Pi) is an approximation for plane parallel atmosphere, Kasten and Young take into account spherical atmosphere
+      ! u0 = cos(DBLE(sza)/180.*Pi) is an approximation for plane parallel atmosphere
+      ! Kasten and Young take into account spherical atmosphere
       call u0_kasten_and_young(dble(sza), u0)
 
       if (observer_location .eq. 0) then ! observer is in space
