@@ -28,6 +28,9 @@ retrievedir = $(srcdir)/retrieve
 objdir = ./OBJECTS
 moddir = ./MODULES
 depdir = ./DEPEND
+$(shell [ -d $(objdir) ] || mkdir -p $(objdir))
+$(shell [ -d $(moddir) ] || mkdir -p $(moddir))
+$(shell [ -d $(depdir) ] || mkdir -p $(depdir))
 
 # Compiler flags
 ifeq ($(FORT),IUP-gfortran)
@@ -251,5 +254,8 @@ clean:
 	-rm $(objdir)/*.o
 	-rm $(moddir)/*.mod
 	-rm $(ntdir)/libNts.a
+	-rm -r $(depdir)
+	-rm -r $(objdir)
+	-rm -r $(moddir)
 	-rm RemoTeC_create
 	-rm RemoTeC_retrieve
