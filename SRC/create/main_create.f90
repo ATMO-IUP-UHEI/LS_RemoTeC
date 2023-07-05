@@ -10,7 +10,7 @@ program main
                               read_settings, window_ini, settings_flags, file_paths, read_win_xsdb, aero, window_spectrum, absorbers
    use optic_cirrus_module, only: read_cirrus_netcdf
    use spec_interface_create_module, only: synthetic_interface_init, synthetic_interface_close, synthetic_interface, &
-                                           output_l1b_nc, output_l1b, output_l1b_nc_js, output_lut_nc_js
+                                           output_l1b_nc, output_l1b, output_l1b_nc_js, output_l1b_nc_ls, output_lut_nc_js
    use retrieval_module, only: get_absorbers
    use read_miprep_module, only: open_miprep, close_miprep
    implicit none
@@ -293,7 +293,8 @@ program main
 
             !*** Write synthetic spectrum to output file
             spectrum_file = trim(path%spectrum)//"L1B_"//runidstring//'.nc'
-            call output_l1b_nc_js(simulation, meta, spectrum_file, index_info)
+            !call output_l1b_nc_js(simulation, meta, spectrum_file, index_info)
+            call output_l1b_nc_ls(simulation, meta, spectrum_file, index_info)
 
             !*** Write meteo data to output file
             meteo_file = trim(path%spectrum)//"ATM_"//runidstring//'.nc'

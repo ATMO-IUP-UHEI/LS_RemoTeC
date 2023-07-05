@@ -13,7 +13,7 @@ module spec_interface_create_module
    public :: instrument_response, spectrum
 
    !*** Procedures
-  public ::  synthetic_interface, instrument_interface, output_l1b, output_l1b_nc, output_lut_nc_js, output_l1b_nc_js, synthetic_interface_init,synthetic_interface_close
+   public ::  synthetic_interface, instrument_interface, output_l1b, output_l1b_nc, output_lut_nc_js, output_l1b_nc_js, output_l1b_nc_ls, synthetic_interface_init,synthetic_interface_close
    private :: spectral_response_create_gauss
 
    integer, private :: ncid_spec, ncid_isrf
@@ -811,6 +811,218 @@ contains
 
    end subroutine output_l1b_nc_js
    !------------------------------------------------------------------------------
+
+
+
+   !------------------------------------------------------------------------------
+   !> @details Write simulated L1B data to netcdf file. Append spectra if file already exists.
+   !------------------------------------------------------------------------------
+   subroutine output_l1b_nc_ls(measurement, meta, spectrum_file, index_info)
+      !*** input
+      type(spectrum), dimension(:), intent(in) :: measurement
+      type(metadata), intent(in) :: meta
+      character(len=*), intent(in) :: spectrum_file, index_info
+      !***  local
+      integer :: ncid, ierr, nwin, stat, ngroup, dimid_nobs, dimid_wave, lastindex, dimid_time, nwave
+      integer :: sza_id, vza_id, saa_id, vaa_id, lat_id, lon_id, time_id, pixel_id, surface_elevation_id, x_id, y_id
+      integer, dimension(:), allocatable :: grpid, rad_id, radnoise_id, raderror_id, irrad_id, irradnoise_id, irraderror_id, wave_id
+      integer :: start(2), dimids_spec(2)
+      integer :: i, n, sx, sy
+      character*1 :: ch
+      logical :: exst
+      character(stringlen) :: group_name
+
+      stat = 0
+
+      ! Extract index in x-dimension to be written
+      i = INDEX(index_info, 'X')
+      read (index_info(i + 1:i + 6), '(I6)') sx
+
+      ! Extract index in y-dimension to be written
+      i = INDEX(index_info, 'Y')
+      read (index_info(i + 1:i + 6), '(I6)') sy
+
+      nwin = size(measurement)
+      allocate (grpid(nwin), &
+                wave_id(nwin), &
+                rad_id(nwin), &
+                radnoise_id(nwin), &
+                raderror_id(nwin), &
+                irrad_id(nwin), &
+                irradnoise_id(nwin), &
+                irraderror_id(nwin), stat=ierr)
+
+      inquire (FILE=trim(spectrum_file), EXIST=exst)
+
+      if (.not. exst) then
+
+         !*** Create the netCDF file
+         call check(nf90_create(trim(spectrum_file), nf90_netcdf4, ncid), stat)
+
+         !*** Unlimited dimension for number of observations
+         call check(nf90_def_dim(ncid, "nobs", nf90_unlimited, dimid_nobs), stat)
+
+         !*** Indexdata
+         call check(nf90_def_var(ncid, "x", nf90_int, dimid_nobs, x_id), stat)
+         call check(nf90_def_var(ncid, "y", nf90_int, dimid_nobs, y_id), stat)
+
+         !*** Geometry
+         call check(nf90_def_var(ncid, "sza", nf90_double, dimid_nobs, sza_id), stat)
+         call check(nf90_def_var(ncid, "vza", nf90_double, dimid_nobs, vza_id), stat)
+         call check(nf90_def_var(ncid, "saa", nf90_double, dimid_nobs, saa_id), stat)
+         call check(nf90_def_var(ncid, "vaa", nf90_double, dimid_nobs, vaa_id), stat)
+
+         call check(nf90_put_att(ncid, sza_id, "unit", "degrees"), stat)
+         call check(nf90_put_att(ncid, sza_id, "description", "Solar Zenith Angle"), stat)
+         call check(nf90_put_att(ncid, vza_id, "unit", "degrees"), stat)
+         call check(nf90_put_att(ncid, vza_id, "description", "Viewing Zenith Angle"), stat)
+         call check(nf90_put_att(ncid, saa_id, "unit", "degrees"), stat)
+         call check(nf90_put_att(ncid, saa_id, "description", "Solar Azimuth Angle"), stat)
+         call check(nf90_put_att(ncid, vaa_id, "unit", "degrees"), stat)
+         call check(nf90_put_att(ncid, vaa_id, "description", "Viewing Azimuth Angle"), stat)
+
+         !*** Geodata
+         call check(nf90_def_var(ncid, "latitude", nf90_double, dimid_nobs, lat_id), stat)
+         call check(nf90_def_var(ncid, "longitude", nf90_double, dimid_nobs, lon_id), stat)
+         call check(nf90_def_var(ncid, "surface_elevation", nf90_double, dimid_nobs, surface_elevation_id), stat)
+
+         call check(nf90_put_att(ncid, lat_id, "unit", "degrees_north"), stat)
+         call check(nf90_put_att(ncid, lat_id, "description", "Latitude at pixel center"), stat)
+         call check(nf90_put_att(ncid, lon_id, "unit", "degrees_east"), stat)
+         call check(nf90_put_att(ncid, lon_id, "description", "Longitude at pixel center"), stat)
+         call check(nf90_put_att(ncid, surface_elevation_id, "unit", "m"), stat)
+         call check(nf90_put_att(ncid, surface_elevation_id, "description", "Surface altitude at pixel center"), stat)
+
+         !*** Timedata
+         call check(nf90_def_dim(ncid, "ntime", 6, dimid_time), stat)
+         call check(nf90_def_var(ncid, "time", nf90_int, dimid_time, time_id), stat)
+         call check(nf90_put_var(ncid, time_id, [meta%time(1), meta%time(2), meta%time(3), meta%time(4), meta%time(5), meta%time(6)]), stat)
+         call check(nf90_put_att(ncid, time_id, "description", "Date and time as [YYYY,MM,DD,HOUR,MIN,SEC]"), stat)
+
+         do n = 1, nwin
+            nwave = measurement(n)%nwave
+            !*** Create a group for each spectral window
+            write (ch, '(i1.1)') n
+            group_name = 'BAND'//ch
+            call check(nf90_def_grp(ncid, trim(group_name), grpid(n)), stat)
+
+            !*** Spectral data
+            call check(nf90_def_dim(grpid(n), "nwave", nwave, dimid_wave), stat)
+
+            !*** Define the variables
+            dimids_spec = (/dimid_wave, dimid_nobs/)
+
+            call check(nf90_def_var(grpid(n), "wavelength", nf90_double, dimid_wave, wave_id(n)), stat)
+            call check(nf90_def_var(grpid(n), "radiance", nf90_double, dimids_spec, rad_id(n)), stat)
+            call check(nf90_def_var(grpid(n), "radiance_noise", nf90_double, dimids_spec, radnoise_id(n)), stat)
+            call check(nf90_def_var(grpid(n), "radiance_error", nf90_double, dimids_spec, raderror_id(n)), stat)
+            call check(nf90_def_var(grpid(n), "irradiance", nf90_double, dimids_spec, irrad_id(n)), stat)
+            call check(nf90_def_var(grpid(n), "irradiance_noise", nf90_double, dimids_spec, irradnoise_id(n)), stat)
+            call check(nf90_def_var(grpid(n), "irradiance_error", nf90_double, dimids_spec, irraderror_id(n)), stat)
+
+            !*** Define attributes
+            call check(nf90_put_att(grpid(n), wave_id(n), "unit", "nm"), stat)
+            call check(nf90_put_att(grpid(n), rad_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), radnoise_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), raderror_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irrad_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irradnoise_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irraderror_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+
+            !*** write spectral grid
+            call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
+         end do
+
+         lastindex = 1
+
+         !*** GET VARIABLE IDs
+      else
+
+         !*** Open the netCDF file and append
+         call check(nf90_open(trim(spectrum_file), nf90_write, ncid), stat)
+         call check(nf90_redef(ncid), stat)
+
+         !*** Indexdata
+         call check(nf90_inq_varid(ncid, "x", x_id), stat)
+         call check(nf90_inq_varid(ncid, "y", y_id), stat)
+
+         !*** Geometry
+         call check(nf90_inq_varid(ncid, "sza", sza_id), stat)
+         call check(nf90_inq_varid(ncid, "vza", vza_id), stat)
+         call check(nf90_inq_varid(ncid, "saa", saa_id), stat)
+         call check(nf90_inq_varid(ncid, "vaa", vaa_id), stat)
+
+         !*** Geodata
+         call check(nf90_inq_varid(ncid, "latitude", lat_id), stat)
+         call check(nf90_inq_varid(ncid, "longitude", lon_id), stat)
+         call check(nf90_inq_varid(ncid, "surface_elevation", surface_elevation_id), stat)
+
+         !*** Get group ID's
+         call check(nf90_inq_grps(ncid, ngroup, grpid), stat)
+
+         do n = 1, ngroup
+            !*** Get variable ID's
+            call check(nf90_inq_dimid(grpid(n), "nwave", dimid_wave), stat)
+            call check(nf90_inquire_dimension(grpid(n), dimid_wave, len=nwave), stat)
+            if (nwave .ne. measurement(n)%nwave) then
+               call writelog("OUTPUT_L1B_NC_LS: nwave is not equal to number of spectral channels", 8)
+            end if
+
+            !*** Spectral data
+            call check(nf90_inq_varid(grpid(n), "radiance", rad_id(n)), stat)
+            call check(nf90_inq_varid(grpid(n), "radiance_noise", radnoise_id(n)), stat)
+            call check(nf90_inq_varid(grpid(n), "radiance_error", raderror_id(n)), stat)
+            call check(nf90_inq_varid(grpid(n), "irradiance", irrad_id(n)), stat)
+            call check(nf90_inq_varid(grpid(n), "irradiance_noise", irradnoise_id(n)), stat)
+            call check(nf90_inq_varid(grpid(n), "irradiance_error", irraderror_id(n)), stat)
+         end do
+
+         !*** Get number of spectra already in file
+         call check(nf90_inq_dimid(ncid, "nobs", dimid_nobs), stat)
+         call check(nf90_inquire_dimension(ncid, dimid_nobs, len=lastindex), stat)
+         lastindex = lastindex + 1
+
+      end if
+
+      !*** WRITE DATA TO FILE
+
+      !*** Indexdata
+      call check(nf90_put_var(ncid, x_id, sx, start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, y_id, sy, start=(/lastindex/)), stat)
+
+      !*** Geometry
+      call check(nf90_put_var(ncid, sza_id, meta%sza, start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, vza_id, meta%iza, start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, saa_id, meta%saz, start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, vaa_id, meta%iaz, start=(/lastindex/)), stat)
+
+      !*** Geodata
+      call check(nf90_put_var(ncid, lat_id, meta%lat(1), start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, lon_id, meta%lon(1), start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, surface_elevation_id, meta%surface_elevation, start=(/lastindex/)), stat)
+
+      !*** Spectral data
+      start = (/1, lastindex/)
+      do n = 1, nwin
+         call check(nf90_put_var(grpid(n), rad_id(n), measurement(n)%radiance, start=(/1, lastindex/)), stat)
+         call check(nf90_put_var(grpid(n), radnoise_id(n), measurement(n)%radiance_noise, start=(/1, lastindex/)), stat)
+         call check(nf90_put_var(grpid(n), raderror_id(n), measurement(n)%radiance_error, start=(/1, lastindex/)), stat)
+         call check(nf90_put_var(grpid(n), irrad_id(n), measurement(n)%irradiance, start=(/1, lastindex/)), stat)
+         call check(nf90_put_var(grpid(n), irradnoise_id(n), measurement(n)%irradiance_noise, start=(/1, lastindex/)), stat)
+         call check(nf90_put_var(grpid(n), irraderror_id(n), measurement(n)%irradiance_error, start=(/1, lastindex/)), stat)
+      end do
+
+      ! Close NetCDF file
+      call check(nf90_close(ncid), stat)
+
+      if (stat .ne. 0) then
+         call writelog('OUTPUT_L1B_NC_LS: Error in writing spectra to netCDF file', 8)
+      end if
+
+   end subroutine output_l1b_nc_ls
+   !------------------------------------------------------------------------------
+
+
 
    subroutine output_lut_nc_js(measurement_hi, atm_scenario, win, meta, xco2, co2_scaling, lut_file)
       !*** input

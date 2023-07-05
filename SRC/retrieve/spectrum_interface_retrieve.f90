@@ -12,7 +12,7 @@ module spectrum_interface_module
    public :: spectrum, instrument_response
 
 !*** Procedures
-   public :: read_spectrum, read_l1b_nc_js, read_l1b, get_isrf_interpolated, instrument_interface
+   public :: read_spectrum, read_l1b_nc_js, read_l1b_nc_ls, read_l1b, get_isrf_interpolated, instrument_interface
    private :: spectral_response_create_gauss, read_isrf_retrieve, calculate_isrf
 
 contains
@@ -448,6 +448,230 @@ contains
       end if
 
    end subroutine read_l1b_nc_js
+
+!------------------------------------------------------------------------------
+!>
+!------------------------------------------------------------------------------
+   subroutine read_l1b_nc_ls(infile, outputflag, measurement, meta, ierr, synthetic_input_flag, observer_location, win_ini, instr_errors)
+      !** Input
+      character(len=*), intent(in) :: infile
+      integer, intent(in) :: outputflag
+      integer, intent(in) :: synthetic_input_flag
+      integer, intent(in) :: observer_location
+      type(window_ini), dimension(:), intent(in), optional :: win_ini
+      type(instrument_errors), dimension(:), intent(in), optional :: instr_errors
+      !*** Output
+      type(spectrum), dimension(:), allocatable, intent(out) :: measurement
+      type(metadata), intent(out) :: meta
+      integer, intent(out) :: ierr
+      !*** local variables
+      integer :: nstokes_l1b, nst
+      real(double), dimension(4) :: s = (/1.d0, 0.D0, 0.D0, 0.d0/)
+      real(double) :: lambda_shifted, continuum
+      integer :: k, l, i, n, nwin, nwave, imid
+      integer, dimension(:), allocatable :: pixelid
+      integer :: ncid, grpid(3), varid, dimid_lat, dimid_lon, dimid_time, dimid_wave
+      integer :: sx, sy, start2d(2), start3d(3)
+      integer :: time_id, sza_id, vza_id, saa_id, vaa_id, observer_altitude_id, lon_id, lat_id, surface_elevation_id
+      real(double), dimension(:), allocatable :: var
+      character(stringlen) :: spectrum_file, index_info, message
+
+      !-------------------------------------------------------------------
+
+      !*** Set nstokes of measurement same to nstokes of model here
+      nstokes_l1b = nstokes
+
+      i = INDEX(infile, '.nc')
+      index_info = infile(i + 4:)
+      spectrum_file = trim(infile(:i + 2))
+
+      ! Extract index in x-dimension to be read
+      i = INDEX(index_info, 'X')
+      read (index_info(i + 1:i + 6), '(I6)') sx
+
+      ! Extract index in y-dimension to be read
+      i = INDEX(index_info, 'Y')
+      read (index_info(i + 1:i + 6), '(I6)') sy
+
+      if (outputflag >= 2) then
+         call writelog('*** Start of READ_L1B_NC_LS ***', 1)
+         call writelog('L1B file: '//trim(spectrum_file), 1)
+      end if
+
+      !*** Read spectrum
+      call check(nf90_open(trim(spectrum_file), nf90_nowrite, ncid), ierr)
+      if (ierr .ne. 0) then
+         ierr = ierr_open
+         call writelog('READ_L1B_NC_LS: error opening file: '//trim(spectrum_file), 6)
+         return
+      end if
+
+      start2d = (/sx, sy/)
+
+      !*** Geometry
+      call check(nf90_inq_varid(ncid, "sza", sza_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, sza_id, meta%sza, start=start2d), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_inq_varid(ncid, "vza", vza_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, vza_id, meta%iza, start=start2d), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_inq_varid(ncid, "saa", saa_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, saa_id, meta%saz, start=start2d), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_inq_varid(ncid, "vaa", vaa_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, vaa_id, meta%iaz, start=start2d), ierr)
+      if (ierr .ne. 0) return
+
+      if (observer_location .eq. 1) then
+         call check(nf90_inq_varid(ncid, "observer_altitude", observer_altitude_id), ierr)
+         if (ierr .ne. 0) return
+         call check(nf90_get_var(ncid, observer_altitude_id, meta%observer_height, start=start2d), ierr)
+         if (ierr .ne. 0) return
+      end if
+
+      meta%phi = dabs(meta%iaz - meta%saz)
+
+      !*** Geodata
+      call check(nf90_inq_varid(ncid, "latitude", lat_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, lat_id, meta%lat(1), start=start2d), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_inq_varid(ncid, "longitude", lon_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, lon_id, meta%lon(1), start=start2d), ierr)
+      if (ierr .ne. 0) return
+
+      call check(nf90_inq_varid(ncid, "surface_elevation", surface_elevation_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, surface_elevation_id, meta%surface_elevation, start=start2d), ierr)
+      if (ierr .ne. 0) return
+
+      !*** Timedata
+      call check(nf90_inq_varid(ncid, "time", time_id), ierr)
+      if (ierr .ne. 0) return
+      call check(nf90_get_var(ncid, time_id, meta%time(1:6)), ierr)
+      if (ierr .ne. 0) return
+
+      !*** For now the center coordinates are used as corner coordinates as well
+      meta%lon(:) = meta%lon(1)
+      meta%lat(:) = meta%lat(1)
+
+      call check(nf90_inq_grps(ncid, nwin, grpid), ierr)
+      if (ierr .ne. 0) return
+
+      allocate (measurement(nwin), stat=ierr)
+      if (ierr .ne. 0) return
+
+      measurement(:)%sza = meta%sza
+      measurement(:)%iza = meta%iza
+      measurement(:)%phi = meta%phi
+      
+      if (observer_location .eq. 1) then
+         measurement(:)%observer_height = meta%observer_height
+      end if
+
+      start3d = (/1, sx, sy/)
+
+      do n = 1, nwin
+
+         !*** Get number of spectral points
+         call check(nf90_inq_dimid(grpid(n), "nwave", dimid_wave), ierr)
+         if (ierr .ne. 0) return
+         call check(nf90_inquire_dimension(grpid(n), dimid_wave, len=nwave), ierr)
+         if (ierr .ne. 0) return
+         measurement(n)%nwave = nwave
+
+         !*** Deallocate/allocate
+         if (.not. allocated(measurement(n)%measurement_stokesc) .and. nstokes_l1b > 1) then
+            allocate (measurement(n)%measurement_stokesc(nstokes_l1b))
+         end if
+         if (.not. allocated(measurement(n)%wavelength)) then
+            allocate ( &
+               measurement(n)%wavelength(measurement(n)%nwave), &
+               measurement(n)%radiance(measurement(n)%nwave), &
+               measurement(n)%radiance_noise(measurement(n)%nwave), &
+               measurement(n)%radiance_error(measurement(n)%nwave), &
+               measurement(n)%mask(measurement(n)%nwave))
+         elseif (size(measurement(n)%wavelength) .ne. measurement(n)%nwave) then
+            deallocate (measurement(n)%wavelength)
+            deallocate (measurement(n)%radiance)
+            deallocate (measurement(n)%radiance_noise)
+            deallocate (measurement(n)%radiance_error)
+            deallocate (measurement(n)%mask)
+            deallocate (measurement(n)%measurement_stokesc)
+            allocate ( &
+               measurement(n)%wavelength(measurement(n)%nwave), &
+               measurement(n)%radiance(measurement(n)%nwave), &
+               measurement(n)%radiance_noise(measurement(n)%nwave), &
+               measurement(n)%mask(measurement(n)%nwave))
+         end if
+
+         if (allocated(var)) deallocate (var)
+         allocate (var(nwave))
+         !*** Get wavelengths
+         call check(nf90_inq_varid(grpid(n), "wavelength", varid), ierr)
+         if (ierr .ne. 0) return
+         call check(nf90_get_var(grpid(n), varid, var, start=start3d), ierr)
+         if (ierr .ne. 0) return
+         measurement(n)%wavelength = var
+
+         !*** Get radiance
+         call check(nf90_inq_varid(grpid(n), "radiance", varid), ierr)
+         if (ierr .ne. 0) return
+         call check(nf90_get_var(grpid(n), varid, var, start=start3d), ierr)
+         if (ierr .ne. 0) return
+         measurement(n)%radiance = var
+         
+         !*** Get radiance_noise
+         call check(nf90_inq_varid(grpid(n), "radiance_noise", varid), ierr)
+         if (ierr .ne. 0) return
+         call check(nf90_get_var(grpid(n), varid, var, start=start3d), ierr)
+         if (ierr .ne. 0) return
+         measurement(n)%radiance_noise = var
+         
+         if (synthetic_input_flag == 1) then
+            !*** Get radiance_error
+            call check(nf90_inq_varid(grpid(n), "radiance_error", varid), ierr)
+            if (ierr .ne. 0) return
+            call check(nf90_get_var(grpid(n), varid, var, start=start3d), ierr)
+            if (ierr .ne. 0) return
+            measurement(n)%radiance_error = var
+         end if
+
+
+         measurement(n)%mask = 0
+         if (nstokes_l1b > 1) then
+            do nst = 1, nstokes_l1b
+               measurement(n)%measurement_stokesc(nst) = s(nst)
+            end do
+         end if
+      end do
+
+      ! Close NetCDF file
+      call check(nf90_close(ncid), ierr)
+
+100   if (ierr .ne. 0) then
+         if (outputflag >= 2) then
+            write (message, '(a)') 'READ_L1B_NC_LS: Error opening/reading spectrum_file '//trim(spectrum_file)
+            call writelog(message, 6)
+         end if
+         return
+      end if
+
+      if (outputflag >= 2) then
+         call writelog('*** End of READ_L1B_NC_LS ***', 1)
+      end if
+
+   end subroutine read_l1b_nc_ls
+
 
 !------------------------------------------------------------------------------
 !  Read in synthetic spectrum in L1B format/units

@@ -65,7 +65,7 @@ module read_settings_module
    end type regularization_class
    
    type :: settings_flags
-      integer ::  atm, scat, rtm, inv, XS, xs_preprocess, sun, O2, temp, Fs, ils, ilscalc, observer_location, solar, fit, oceanglint, glintscat, output, coreg
+      integer ::  synthetic_input, atm, scat, rtm, inv, XS, xs_preprocess, sun, O2, temp, Fs, ils, ilscalc, observer_location, solar, fit, oceanglint, glintscat, output, coreg
       type(regularization_class) :: reg
    end type settings_flags
 
@@ -207,6 +207,7 @@ module read_settings_module
 
       !*** Default settings (if not specified in namelist file)
       !*** setting flags
+      flag%synthetic_input = 0
       flag%atm = 0
       flag%scat = -999
       flag%rtm = 1
@@ -675,6 +676,12 @@ module read_settings_module
             goto 999
 	 endif
       enddo
+
+      if (flag%synthetic_input < 0 .or. flag%synthetic_input > 1) then
+         ierr = ierr_var
+         write(message, *) 'CHECK_SETTINGS: synthetic_input must be 0 (no) or 1 (yes).'
+         goto 999
+      endif
 
       !****Check validity of the retrieval flags   
       if(flag%atm<0 .or. flag%atm > 7 ) then      ! JS: increased the number of valid atm-flags

@@ -5,9 +5,9 @@ module wrapper_retrieve_module
                                Mie_lut, cirrus_table, read_aerosol_netcdf, read_cirrus_netcdf, &
                                window_ini, settings_flags, file_paths, altitude_grid, read_settings, read_win_xsdb
    use synthetic_input_module, only: instrument_errors, read_errors, synthetic_data, get_synthetic_data, get_synthetic_data_nc
-  use spectrum_interface_module, only: spectrum, read_spectrum, read_l1b_nc_js, read_l1b, instrument_response, get_isrf_interpolated
+  use spectrum_interface_module, only: spectrum, read_spectrum, read_l1b_nc_js, read_l1b_nc_ls, read_l1b, instrument_response, get_isrf_interpolated
    use solar_model_module, only: sun_spectrum, read_sun_netcdf, read_sun_tsis1_hsrs, interpolate_solar_spectrum
-   use diagnostics_module, only: diagnostics_retrieve, diagnostics_retrieve_nc_js
+   use diagnostics_module, only: diagnostics_retrieve, diagnostics_retrieve_nc_js, diagnostics_retrieve_nc_ls
 
    implicit none
    private
@@ -141,7 +141,8 @@ contains
          call read_spectrum(spectrum_file, 1, fixed%flag%output, measurement, meta, ierr)
          if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_spectrum.', 8)
       elseif (fixed%flag%atm == 4) then
-         call read_l1b_nc_js(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%observer_location)
+         !call read_l1b_nc_js(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%observer_location)
+         call read_l1b_nc_ls(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location)
          if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_l1b_nc_js.', 8)
       else
          call read_l1b(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr)
@@ -222,7 +223,7 @@ contains
          if (ierr .ne. 0) return
       elseif (fixed%flag%atm == 4) then      !*** Indianapolis NetCDF format, pressure grid
          varying%meteo_file = trim(fixed%path%meteo)//'ATM_'//trim(varying%filename)
-     call read_atmosphere_nc_js(varying%meteo_file, fixed%flag%output, varying%atm_scenario, varying%meta, ierr, fixed%meteo_errors)
+         call read_atmosphere_nc_js(varying%meteo_file, fixed%flag%output, varying%atm_scenario, varying%meta, ierr, fixed%meteo_errors)
          if (ierr .ne. 0) return
       end if
 
@@ -233,7 +234,8 @@ contains
          if (ierr .ne. 0) return
       elseif (fixed%flag%atm == 4) then
          varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
-       call read_l1b_nc_js(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
+       !call read_l1b_nc_js(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
+       call read_l1b_nc_ls(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
          if (ierr .ne. 0) return
       else                        !*** ascii format
          varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
@@ -244,27 +246,32 @@ contains
       !*******************************************************************
       !*** Only for synthetic spectra
       !*******************************************************************
-      if (fixed%flag%atm == 3) then
-         write (name, '(I6.6)') ipixel
-         varying%filename = 'ATM_'//name
-!!$       call get_synthetic_data( &
-!!$            fixed%win_ini, varying%atm_scenario, fixed%meteo_errors, fixed%aerosol_ini, &
-!!$            fixed%path%spectrum, fixed%path%meteo, varying%filename, varying%measurement, &
-!!$            fixed%grid, fixed%flag%temp, fixed%flag%fit, &
-!!$            output%syn_output)
-         call get_synthetic_data_nc( &
-            fixed%win_ini, varying%atm_scenario, fixed%aerosol_ini, &
-            varying%measurement, varying%meta, &
-            fixed%grid, fixed%flag%temp, fixed%flag%fit, &
-            output%syn_output)
-      else
-         varying%filename = 'ATM_'//varying%filename
-         call get_synthetic_data( &
-            fixed%win_ini, varying%atm_scenario, fixed%meteo_errors, fixed%aerosol_ini, &
-            fixed%path%spectrum, fixed%path%meteo, varying%filename, varying%measurement, &
-            fixed%grid, fixed%flag%temp, fixed%flag%fit, fixed%flag%atm, &
-            output%syn_output, ierr)
-         if (ierr .ne. 0) return
+
+      if (fixed%flag%synthetic_input == 0) then
+         varying%filename = "ATM_"//varying%filename
+      else if (fixed%flag%synthetic_input == 1) then
+         if (fixed%flag%atm == 3) then
+            write (name, '(I6.6)') ipixel
+            varying%filename = 'ATM_'//name
+        !    call get_synthetic_data( &
+        !         fixed%win_ini, varying%atm_scenario, fixed%meteo_errors, fixed%aerosol_ini, &
+        !         fixed%path%spectrum, fixed%path%meteo, varying%filename, varying%measurement, &
+        !         fixed%grid, fixed%flag%temp, fixed%flag%fit, &
+        !         output%syn_output)
+            call get_synthetic_data_nc( &
+               fixed%win_ini, varying%atm_scenario, fixed%aerosol_ini, &
+               varying%measurement, varying%meta, &
+               fixed%grid, fixed%flag%temp, fixed%flag%fit, &
+               output%syn_output)
+         else
+            varying%filename = 'ATM_'//varying%filename
+            call get_synthetic_data( &
+               fixed%win_ini, varying%atm_scenario, fixed%meteo_errors, fixed%aerosol_ini, &
+               fixed%path%spectrum, fixed%path%meteo, varying%filename, varying%measurement, &
+               fixed%grid, fixed%flag%temp, fixed%flag%fit, fixed%flag%atm, &
+               output%syn_output, ierr)
+            if (ierr .ne. 0) return
+         end if
       end if
 
    end subroutine init_pixel
@@ -314,10 +321,16 @@ contains
 
       if (atmflag .EQ. 4) then
          meteo_file = trim(fixedData%path%spectrum)//trim(varyingData%filename)
-         call diagnostics_retrieve_nc_js(fixedData%path%output, runid, &
+         ! call diagnostics_retrieve_nc_js(fixedData%path%output, runid, &
+         !                            meteo_file, &
+         !                            fixedData%win_ini, &
+         !                            outputData%syn_output, outputData%retrieval_output, varyingData%meta, &
+         !                            varyingData%measurement, fixedData%grid%nlay, fixedData%flag%output)
+         call diagnostics_retrieve_nc_ls(fixedData%path%output, runid, &
                                     meteo_file, &
                                     fixedData%win_ini, &
-                                    outputData%syn_output, outputData%retrieval_output, varyingData%meta, &
+                                    fixedData%flag%synthetic_input, outputData%syn_output, &
+                                    outputData%retrieval_output, varyingData%meta, &
                                     varyingData%measurement, fixedData%grid%nlay, fixedData%flag%output)
       else
          !    meteo_file = trim(fixedData%path%meteo)//trim(varyingData%filename)
