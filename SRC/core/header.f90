@@ -107,6 +107,8 @@ module header_module
 
      !> Date: year, month, day, hour, minute, second, millisecond
      integer :: time(7)
+     !> datetime: seconds since reference time
+     real(double) :: seconds_since_reference
 
      !> Orbit altitude
      real(double) :: altitude  ! Added by JS

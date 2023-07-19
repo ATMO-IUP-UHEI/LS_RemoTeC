@@ -1066,79 +1066,72 @@ contains
          call check(nf90_def_var(ncid, "x", nf90_int, dimid_nobs, x_id), stat)
          call check(nf90_def_var(ncid, "y", nf90_int, dimid_nobs, y_id), stat)
 
-         !*** Geometry
-         call check(nf90_def_var(ncid, "sza", nf90_float, dimid_nobs, sza_id), stat)
-         call check(nf90_put_att(ncid, sza_id, "unit", "degrees"), stat)
-         call check(nf90_put_att(ncid, sza_id, "description", "Solar Zenith Angle"), stat)
-
-         call check(nf90_def_var(ncid, "vza", nf90_float, dimid_nobs, vza_id), stat)
-         call check(nf90_put_att(ncid, vza_id, "unit", "degrees"), stat)
-         call check(nf90_put_att(ncid, vza_id, "description", "Viewing Zenith Angle"), stat)
-
-         !*** Airmass
-         call check(nf90_def_var(ncid, "airmass", nf90_float, dimid_nobs, xair_id), stat)
-         call check(nf90_put_att(ncid, xair_id, "unit", "molec.cm-2"), stat)
-         call check(nf90_put_att(ncid, xair_id, "description", "Airmass vertically integrated"), stat)
-
-         !*** Surface Pressure
-         call check(nf90_def_var(ncid, "surface_pressure", nf90_float, dimid_nobs, psf_id), stat)
-         call check(nf90_put_att(ncid, psf_id, "unit", "hPa"), stat)
-         call check(nf90_put_att(ncid, psf_id, "description", "Surface pressure"), stat)
+         !*** Timedata
+         call check(nf90_def_var(ncid, "time", nf90_int, dimid_time, time_id), stat)
+         call check(nf90_put_var(ncid, time_id, meta%seconds_since_reference), stat)
+         call check(nf90_put_att(ncid, time_id, "long_name", "seconds since reference"), stat)
+         call check(nf90_put_att(ncid, time_id, "units", "YYYY-MM-DDThh:mm:ssZ"), stat)
 
          !*** Geodata
          call check(nf90_def_var(ncid, "latitude", nf90_float, dimid_nobs, lat_id), stat)
-         call check(nf90_put_att(ncid, lat_id, "unit", "degrees_north"), stat)
-         call check(nf90_put_att(ncid, lat_id, "description", "Latitude at pixel center"), stat)
+         call check(nf90_put_att(ncid, lat_id, "long_name", "Latitude at pixel center"), stat)
+         call check(nf90_put_att(ncid, lat_id, "units", "degrees north"), stat)
 
          call check(nf90_def_var(ncid, "longitude", nf90_float, dimid_nobs, lon_id), stat)
-         call check(nf90_put_att(ncid, lon_id, "unit", "degrees_east"), stat)
-         call check(nf90_put_att(ncid, lon_id, "description", "Longitude at pixel center"), stat)
+         call check(nf90_put_att(ncid, lon_id, "long_name", "Longitude at pixel center"), stat)
+         call check(nf90_put_att(ncid, lon_id, "units", "degrees east"), stat)
 
-         !*** Timedata
-         call check(nf90_def_dim(ncid, "ntime", 6, dimid_time), stat)
-         call check(nf90_def_var(ncid, "time", nf90_int, dimid_time, time_id), stat)
-         call check(nf90_put_var(ncid, time_id, [meta%time(1), meta%time(2), meta%time(3), meta%time(4), meta%time(5), meta%time(6)]), stat)
-         call check(nf90_put_att(ncid, time_id, "description", "Date and time as [YYYY,MM,DD,HOUR,MIN,SEC]"), stat)
+         !*** Geometry
+         call check(nf90_def_var(ncid, "solar_zenith_angle", nf90_float, dimid_nobs, sza_id), stat)
+         call check(nf90_put_att(ncid, sza_id, "long_name", "Solar zenith angle"), stat)
+         call check(nf90_put_att(ncid, sza_id, "units", "degrees"), stat)
+
+         call check(nf90_def_var(ncid, "viewing_zenith_angle", nf90_float, dimid_nobs, vza_id), stat)
+         call check(nf90_put_att(ncid, vza_id, "long_name", "Viewing zenith angle"), stat)
+         call check(nf90_put_att(ncid, vza_id, "units", "degrees"), stat)
+
+         !*** Airmass
+         call check(nf90_def_var(ncid, "airmass", nf90_float, dimid_nobs, xair_id), stat)
+         call check(nf90_put_att(ncid, xair_id, "long_name", "Vertically integrated airmass"), stat)
+         call check(nf90_put_att(ncid, xair_id, "units", "molecules cm-2"), stat)
+
+         !*** Surface Pressure
+         call check(nf90_def_var(ncid, "surface_pressure", nf90_float, dimid_nobs, psf_id), stat)
+         call check(nf90_put_att(ncid, psf_id, "long_name", "Surface pressure"), stat)
+         call check(nf90_put_att(ncid, psf_id, "units", "hPa"), stat)
 
          !*** Quality flags
          call check(nf90_def_var(ncid, "convergence", nf90_int, dimid_nobs, cf_id), stat)
-         call check(nf90_put_att(ncid, cf_id, "unit", "-"), stat)
-         call check(nf90_put_att(ncid, cf_id, "description", "Binary flag for retrieval convergence"), stat)
+         call check(nf90_put_att(ncid, cf_id, "long_name", "Binary flag for retrieval convergence"), stat)
 
          call check(nf90_def_var(ncid, "iter", nf90_int, dimid_nobs, it_id), stat)
-         call check(nf90_put_att(ncid, it_id, "unit", "-"), stat)
-         call check(nf90_put_att(ncid, it_id, "description", "Number of iterations needed for convergence"), stat)
+         call check(nf90_put_att(ncid, it_id, "long_name", "Number of iterations needed for convergence"), stat)
 
          call check(nf90_def_var(ncid, "error_id", nf90_int, dimid_nobs, eid_id), stat)
-         call check(nf90_put_att(ncid, eid_id, "unit", "-"), stat)
-         call check(nf90_put_att(ncid, eid_id, "description", "Error-ID for retrieval"), stat)
+         call check(nf90_put_att(ncid, eid_id, "long_name", "Error-ID for retrieval"), stat)
 
          !*** Quality measures
          call check(nf90_def_var(ncid, "chi2", nf90_float, dimid_nobs, chi_id), stat)
-         call check(nf90_put_att(ncid, chi_id, "unit", "-"), stat)
-         call check(nf90_put_att(ncid, chi_id, "description", "chi-squared quality measure of retrieval"), stat)
+         call check(nf90_put_att(ncid, chi_id, "long_name", "Chi-squared quality measure of retrieval"), stat)
 
          call check(nf90_def_var(ncid, "dfs", nf90_float, dimid_nobs, dfs_id), stat)
-         call check(nf90_put_att(ncid, dfs_id, "unit", "-"), stat)
-         call check(nf90_put_att(ncid, dfs_id, "description", "Degrees of freedom for retrieval"), stat)
+         call check(nf90_put_att(ncid, dfs_id, "long_name", "Degrees of freedom for retrieval"), stat)
 
          call check(nf90_def_var(ncid, "dfs_scat", nf90_float, dimid_nobs, dfss_id), stat)
-         call check(nf90_put_att(ncid, dfss_id, "unit", "-"), stat)
-         call check(nf90_put_att(ncid, dfss_id, "description", "Degrees of freedom for scattering retrieval"), stat)
+         call check(nf90_put_att(ncid, dfss_id, "long_name", "Degrees of freedom for scattering retrieval"), stat)
 
          !*** Retrieved gas concentrations and corresponding retrievals errors and corresponding degrees of freedom
          do n = 1, ntype_target
             call check(nf90_def_var(ncid, trim('x_')//trim(x_name(n)), nf90_float, dimid_nobs, tc_id(n)), stat)
-            call check(nf90_put_att(ncid, tc_id(n), "unit", trim(x_unit(n))), stat)
-            call check(nf90_put_att(ncid, tc_id(n), "description", "Retrieved column-averaged dry-air mole fraction of target gas"), stat)
+            call check(nf90_put_att(ncid, tc_id(n), "long_name", "Retrieved column-averaged dry-air mole fraction of target gas"), stat)
+            call check(nf90_put_att(ncid, tc_id(n), "units", trim(x_unit(n))), stat)
 
             call check(nf90_def_var(ncid, trim('x_')//trim(x_name(n))//trim('_err'), nf90_float, dimid_nobs, tcerr_id(n)), stat)
-            call check(nf90_put_att(ncid, tcerr_id(n), "unit", trim(x_unit(n))), stat)
-            call check(nf90_put_att(ncid, tcerr_id(n), "description", "Random noise error of retrieved column-averaged dry-air mole fraction of target gas"), stat)
+            call check(nf90_put_att(ncid, tcerr_id(n), "long_name", "Random noise error of retrieved column-averaged dry-air mole fraction of target gas"), stat)
+            call check(nf90_put_att(ncid, tcerr_id(n), "units", trim(x_unit(n))), stat)
 
             call check(nf90_def_var(ncid, trim('dfst_')//trim(x_name(n)), nf90_float, dimid_nobs, dfst_id(n)), stat)
-            call check(nf90_put_att(ncid, dfst_id(n), "unit", "-"), stat)
-            call check(nf90_put_att(ncid, dfst_id(n), "description", "Degrees of freedom for target retrieval"), stat)
+            call check(nf90_put_att(ncid, dfst_id(n), "long_name", "Degrees of freedom for target retrieval"), stat)
          end do
 
          if (synthetic_input_flag .eq. 1) then
@@ -1147,8 +1140,8 @@ contains
             do k = 1, 11
                if (x_in_flag(k) .EQ. 1) then
                   call check(nf90_def_var(ncid, trim('x_')//trim(x_in_name(k))//trim('_inp'), nf90_float, dimid_nobs, tcin_id(n)), stat)
-                  call check(nf90_put_att(ncid, tcin_id(n), "unit", trim(x_in_unit(k))), stat)
-                  call check(nf90_put_att(ncid, tcin_id(n), "description", "Column-averaged dry-air mole fraction of target gas used to simulate spectrum"), stat)
+                  call check(nf90_put_att(ncid, tcin_id(n), "long_name", "Column-averaged dry-air mole fraction of target gas used to simulate spectrum"), stat)
+                  call check(nf90_put_att(ncid, tcin_id(n), "units", trim(x_in_unit(k))), stat)
                   n = n + 1
                end if
             end do
@@ -1166,32 +1159,28 @@ contains
 
             !*** Define the variables
             call check(nf90_def_var(grpid(n), "wavelength", nf90_float, dimid_wave, wave_id(n)), stat)
-            call check(nf90_put_att(grpid(n), wave_id(n), "unit", "nm"), stat)
-            call check(nf90_put_att(grpid(n), wave_id(n), "description", "Wavelength grid of spectrum"), stat)
+            call check(nf90_put_att(grpid(n), wave_id(n), "long_name", "Wavelength grid of spectrum"), stat)
+            call check(nf90_put_att(grpid(n), wave_id(n), "units", "nm"), stat)
 
             call check(nf90_def_var(grpid(n), "ot", nf90_float, dimid_nobs, ot_id(n)), stat)
-            call check(nf90_put_att(grpid(n), ot_id(n), "unit", "-"), stat)
-            call check(nf90_put_att(grpid(n), ot_id(n), "description", "Retrieved total optical thickness"), stat)
+            call check(nf90_put_att(grpid(n), ot_id(n), "long_name", "Retrieved total optical thickness"), stat)
 
             call check(nf90_def_var(grpid(n), "cot", nf90_float, dimid_nobs, cot_id(n)), stat)
-            call check(nf90_put_att(grpid(n), cot_id(n), "unit", "-"), stat)
-            call check(nf90_put_att(grpid(n), cot_id(n), "description", "Retrieved cirrus optical thickness"), stat)
+            call check(nf90_put_att(grpid(n), cot_id(n), "long_name", "Retrieved cirrus optical thickness"), stat)
 
             call check(nf90_def_var(grpid(n), "alb", nf90_float, dimid_nobs, alb_id(n)), stat)
-            call check(nf90_put_att(grpid(n), alb_id(n), "unit", "-"), stat)
-            call check(nf90_put_att(grpid(n), alb_id(n), "description", "Retrieved surface albedo"), stat)
+            call check(nf90_put_att(grpid(n), alb_id(n), "long_name", "Retrieved surface albedo"), stat)
 
-            !call check(nf90_def_var(grpid(n), "ot_inp", nf90_float, dimid_nobs, otin_id(n)), stat)
-            !call check(nf90_put_att(grpid(n), otin_id(n), "unit", "-"), stat)
-            !call check(nf90_put_att(grpid(n), otin_id(n), "description", "Total optical thickness used to simulate spectrum"), stat)
+            if (synthetic_input_flag .eq. 1) then
+               call check(nf90_def_var(grpid(n), "ot_inp", nf90_float, dimid_nobs, otin_id(n)), stat)
+               call check(nf90_put_att(grpid(n), otin_id(n), "long_name", "Total optical thickness used to simulate spectrum"), stat)
 
-            !call check(nf90_def_var(grpid(n), "cot_inp", nf90_float, dimid_nobs, cotin_id(n)), stat)
-            !call check(nf90_put_att(grpid(n), cotin_id(n), "unit", "-"), stat)
-            !call check(nf90_put_att(grpid(n), cotin_id(n), "description", "Cirrus optical thickness used to simulate spectrum"), stat)
+               call check(nf90_def_var(grpid(n), "cot_inp", nf90_float, dimid_nobs, cotin_id(n)), stat)
+               call check(nf90_put_att(grpid(n), cotin_id(n), "long_name", "Cirrus optical thickness used to simulate spectrum"), stat)
 
-            !call check(nf90_def_var(grpid(n), "alb_inp", nf90_float, dimid_nobs, albin_id(n)), stat)
-            !call check(nf90_put_att(grpid(n), albin_id(n), "unit", "-"), stat)
-            !call check(nf90_put_att(grpid(n), albin_id(n), "description", "Surface albedo used to simulate spectrum"), stat)
+               call check(nf90_def_var(grpid(n), "alb_inp", nf90_float, dimid_nobs, albin_id(n)), stat)
+               call check(nf90_put_att(grpid(n), albin_id(n), "long_name", "Surface albedo used to simulate spectrum"), stat)
+            end if
 
             !*** write spectral grid
             call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
@@ -1212,8 +1201,8 @@ contains
          call check(nf90_inq_varid(ncid, "y", y_id), stat)
 
          !*** Geometry
-         call check(nf90_inq_varid(ncid, "sza", sza_id), stat)
-         call check(nf90_inq_varid(ncid, "vza", vza_id), stat)
+         call check(nf90_inq_varid(ncid, "solar_zenith_angle", sza_id), stat)
+         call check(nf90_inq_varid(ncid, "viewing_zenith_angle", vza_id), stat)
 
          !*** Airmass
          call check(nf90_inq_varid(ncid, "airmass", xair_id), stat)
@@ -1261,9 +1250,11 @@ contains
             call check(nf90_inq_varid(grpid(n), "ot", ot_id(n)), stat)
             call check(nf90_inq_varid(grpid(n), "cot", cot_id(n)), stat)
             call check(nf90_inq_varid(grpid(n), "alb", alb_id(n)), stat)
-            !call check(nf90_inq_varid(grpid(n), "ot_inp", otin_id(n)), stat)
-            !call check(nf90_inq_varid(grpid(n), "cot_inp", cotin_id(n)), stat)
-            !call check(nf90_inq_varid(grpid(n), "alb_inp", albin_id(n)), stat)
+            if (synthetic_input_flag .eq. 1) then
+               call check(nf90_inq_varid(grpid(n), "ot_inp", otin_id(n)), stat)
+               call check(nf90_inq_varid(grpid(n), "cot_inp", cotin_id(n)), stat)
+               call check(nf90_inq_varid(grpid(n), "alb_inp", albin_id(n)), stat)
+            end if
          end do
 
          !*** Get number of spectra already in file
@@ -1279,6 +1270,10 @@ contains
       call check(nf90_put_var(ncid, x_id, sx, start=(/lastindex/)), stat)
       call check(nf90_put_var(ncid, y_id, sy, start=(/lastindex/)), stat)
 
+      !*** Geodata
+      call check(nf90_put_var(ncid, lat_id, meta%lat(1), start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, lon_id, meta%lon(1), start=(/lastindex/)), stat)
+
       !*** Geometry
       call check(nf90_put_var(ncid, sza_id, meta%sza, start=(/lastindex/)), stat)
       call check(nf90_put_var(ncid, vza_id, meta%iza, start=(/lastindex/)), stat)
@@ -1288,10 +1283,6 @@ contains
 
       !*** Surface Pressure
       call check(nf90_put_var(ncid, psf_id, psf, start=(/lastindex/)), stat)
-
-      !*** Geodata
-      call check(nf90_put_var(ncid, lat_id, meta%lat(1), start=(/lastindex/)), stat)
-      call check(nf90_put_var(ncid, lon_id, meta%lon(1), start=(/lastindex/)), stat)
 
       !*** Quality flags
       call check(nf90_put_var(ncid, cf_id, retrieval_output%convergence, start=(/lastindex/)), stat)
@@ -1325,9 +1316,11 @@ contains
          call check(nf90_put_var(grpid(n), ot_id(n), retrieval_output%ot(n), start=(/lastindex/)), stat)
          call check(nf90_put_var(grpid(n), cot_id(n), retrieval_output%cot(n), start=(/lastindex/)), stat)
          call check(nf90_put_var(grpid(n), alb_id(n), retrieval_output%albedo(n), start=(/lastindex/)), stat)
-         !call check(nf90_put_var(grpid(n), otin_id(n), ot_in, start=(/lastindex/)), stat)
-         !call check(nf90_put_var(grpid(n), cotin_id(n), cot_in, start=(/lastindex/)), stat)
-         !call check(nf90_put_var(grpid(n), albin_id(n), alb_in, start=(/lastindex/)), stat)
+         if (synthetic_input_flag .eq. 1) then
+            call check(nf90_put_var(grpid(n), otin_id(n), ot_in, start=(/lastindex/)), stat)
+            call check(nf90_put_var(grpid(n), cotin_id(n), cot_in, start=(/lastindex/)), stat)
+            call check(nf90_put_var(grpid(n), albin_id(n), alb_in, start=(/lastindex/)), stat)
+         end if
       end do
 
       ! Close NetCDF file

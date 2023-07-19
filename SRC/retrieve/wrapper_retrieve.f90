@@ -142,7 +142,7 @@ contains
          if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_spectrum.', 8)
       elseif (fixed%flag%atm == 4) then
          !call read_l1b_nc_js(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%observer_location)
-         call read_l1b_nc_ls(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location)
+         call read_l1b_nc_ls(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini)
          if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_l1b_nc_js.', 8)
       else
          call read_l1b(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr)
@@ -235,7 +235,7 @@ contains
       elseif (fixed%flag%atm == 4) then
          varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
        !call read_l1b_nc_js(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
-       call read_l1b_nc_ls(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
+         call read_l1b_nc_ls(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
          if (ierr .ne. 0) return
       else                        !*** ascii format
          varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
