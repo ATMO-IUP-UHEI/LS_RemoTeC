@@ -5,7 +5,7 @@ module wrapper_retrieve_module
                                Mie_lut, cirrus_table, read_aerosol_netcdf, read_cirrus_netcdf, &
                                window_ini, settings_flags, file_paths, altitude_grid, read_settings, read_win_xsdb
    use synthetic_input_module, only: instrument_errors, read_errors, synthetic_data, get_synthetic_data, get_synthetic_data_nc
-  use spectrum_interface_module, only: spectrum, read_spectrum, read_l1b_nc_js, read_l1b_nc_ls, read_l1b, instrument_response, get_isrf_interpolated
+  use spectrum_interface_module, only: spectrum, read_l1b, instrument_response, get_isrf_interpolated
    use solar_model_module, only: sun_spectrum, read_sun_netcdf, read_sun_tsis1_hsrs, interpolate_solar_spectrum
    use diagnostics_module, only: diagnostics_retrieve, diagnostics_retrieve_nc_js, diagnostics_retrieve_nc_ls
 
@@ -136,17 +136,11 @@ contains
       if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_win_xsdb.', 8)
 
       !*** Get measured spectral grid
-      if (fixed%flag%atm == 3) then !*** From RemoTeC's NetCDF L1B file
-         spectrum_file = trim(fixed%path%spectrum)//first_atm
-         call read_spectrum(spectrum_file, 1, fixed%flag%output, measurement, meta, ierr)
-         if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_spectrum.', 8)
-      elseif (fixed%flag%atm == 4) then
-         !call read_l1b_nc_js(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%observer_location)
-         call read_l1b_nc_ls(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini)
-         if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_l1b_nc_js.', 8)
-      else
-         call read_l1b(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr)
+      if (fixed%flag%atm == 4) then
+         call read_l1b(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini)
          if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_l1b.', 8)
+      else
+         print*, "ERROR: READING ATMOSPHERE WITH FLAG ", fixed%flag%atm, " NOT SUPPORTED ANYMORE"
       end if
 
       !*** Get Instrument Spectral Response Function on appropiate spectral grids:
@@ -228,19 +222,12 @@ contains
       end if
 
       !*** synthetic spectrum
-      if (fixed%flag%atm == 3) then !*** NetCDF format
-         varying%spectrum_file = trim(fixed%path%spectrum)//trim(varying%filename)
-         call read_spectrum(varying%spectrum_file, ipixel, fixed%flag%output, varying%measurement, varying%meta, ierr)
-         if (ierr .ne. 0) return
-      elseif (fixed%flag%atm == 4) then
+      if (fixed%flag%atm == 4) then
          varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
-       !call read_l1b_nc_js(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
-         call read_l1b_nc_ls(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
+         call read_l1b(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
          if (ierr .ne. 0) return
-      else                        !*** ascii format
-         varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
- call read_l1b(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%win_ini, fixed%instr_errors)
-         if (ierr .ne. 0) return
+      else
+         print*, "ERROR: READING ATMOSPHERE WITH FLAG ", fixed%flag%atm, " NOT SUPPORTED ANYMORE"
       end if
 
       !*******************************************************************

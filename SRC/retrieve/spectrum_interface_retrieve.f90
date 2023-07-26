@@ -12,447 +12,12 @@ module spectrum_interface_module
    public :: spectrum, instrument_response
 
 !*** Procedures
-   public :: read_spectrum, read_l1b_nc_js, read_l1b_nc_ls, read_l1b, get_isrf_interpolated, instrument_interface
+   public :: read_l1b, get_isrf_interpolated, instrument_interface
    private :: spectral_response_create_gauss, read_isrf_retrieve, calculate_isrf
 
 contains
 
-!------------------------------------------------------------------------------
-!> @details Read in synthetic spectrum
-!------------------------------------------------------------------------------
-   subroutine read_spectrum(infile, ipixel, outputflag, measurement, meta, ierr)
-      !** Input
-      character(len=*), intent(in) :: infile
-      integer, intent(in) :: ipixel, outputflag
-      !*** Output
-      type(spectrum), dimension(:), allocatable, intent(out) :: measurement
-      type(metadata), intent(in) :: meta
-      integer, intent(out) :: ierr
-      !*** local variables
-      integer :: i, n, nwin, nwave, npixel, nobs
-      integer, dimension(:), allocatable :: pixelid
-      integer :: ncid, varid, dimid, start(1), count(1), start_prof(2), count_prof(2)
-      integer, dimension(2) :: grpid
-      real(double), dimension(:), allocatable :: var
-      character(stringlen) :: message
-      !-------------------------------------------------------------------
-
-      if (outputflag >= 2) then
-         call writelog('*** Start of READ_SPECTRUM ***', 1)
-         write (message, *) ipixel
-         call writelog('L1B file: '//trim(infile)//' PixelID: '//trim(message), 1)
-      end if
-      !*** Read spectrum
-      call check(nf90_open(trim(infile)//'_sim.nc', nf90_nowrite, ncid), ierr)
-      if (ierr .ne. 0) then
-         ierr = ierr_open
-         call writelog('READ_SPECTRUM: error opening file: '//trim(infile)//'_sim.nc', 6)
-         return
-      end if
-
-      !*** Get number of observations
-      call check(NF90_INQ_DIMID(ncid, "nobs", dimid), ierr)
-      if (ierr .ne. 0) return
-      call check(NF90_INQUIRE_DIMENSION(ncid, dimid, len=nobs), ierr)
-      allocate (pixelid(nobs))
-      call check(NF90_INQ_VARID(ncid, "pixelID", varid), ierr)
-      if (ierr .ne. 0) return
-      call check(NF90_GET_VAR(ncid, varid, pixelid), ierr)
-      if (ierr .ne. 0) return
-
-      do i = 1, nobs
-         if (pixelid(i) == ipixel) then
-            npixel = i
-            exit
-         end if
-      end do
-      if (npixel > nobs) then
-         call writelog("READ_SPECTRUM: pixelid not in spectrumfile", 6)
-         ierr = ierr_l1b
-         return
-      end if
-      start = [npixel]
-      count = [1]
-      start_prof = [1, npixel]
-
-      !*** Get number of bands
-      call check(nf90_inq_grps(ncid, nwin, grpid), ierr)
-      allocate (measurement(nwin), stat=ierr)
-      do n = 1, nwin
-
-         measurement(n)%sza = meta%sza
-         measurement(n)%iza = meta%iza
-         measurement(n)%phi = dabs(meta%iaz - meta%saz)
-
-         !*** Get number of spectral points
-         call check(NF90_INQ_DIMID(grpid(n), "nwave", dimid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_INQUIRE_DIMENSION(grpid(n), dimid, len=nwave), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%nwave = nwave
-         count_prof = [nwave, 1]
-
-         !*** Deallocate/allocate
-         if (.not. allocated(measurement(n)%wavelength)) then
-            allocate ( &
-               measurement(n)%wavelength(measurement(n)%nwave), &
-               measurement(n)%radiance(measurement(n)%nwave), &
-               measurement(n)%radiance_noise(measurement(n)%nwave), &
-               measurement(n)%radiance_error(measurement(n)%nwave), &
-               measurement(n)%irradiance(measurement(n)%nwave), &
-               measurement(n)%irradiance_noise(measurement(n)%nwave), &
-               measurement(n)%irradiance_error(measurement(n)%nwave))
-         elseif (size(measurement(n)%wavelength) .ne. measurement(n)%nwave) then
-            deallocate (measurement(n)%wavelength)
-            deallocate (measurement(n)%radiance)
-            deallocate (measurement(n)%radiance_noise)
-            deallocate (measurement(n)%radiance_error)
-            deallocate (measurement(n)%irradiance)
-            deallocate (measurement(n)%irradiance_noise)
-            deallocate (measurement(n)%irradiance_error)
-            allocate ( &
-               measurement(n)%wavelength(measurement(n)%nwave), &
-               measurement(n)%radiance(measurement(n)%nwave), &
-               measurement(n)%radiance_noise(measurement(n)%nwave), &
-               measurement(n)%radiance_error(measurement(n)%nwave), &
-               measurement(n)%irradiance(measurement(n)%nwave), &
-               measurement(n)%irradiance_noise(measurement(n)%nwave), &
-               measurement(n)%irradiance_error(measurement(n)%nwave))
-         end if
-
-         if (allocated(var)) deallocate (var)
-         allocate (var(nwave))
-         !*** Get wavenumbers
-         call check(NF90_INQ_VARID(grpid(n), "wavelength", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start_prof, count=count_prof), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%wavelength = var
-
-         !*** Get radiance
-         call check(NF90_INQ_VARID(grpid(n), "radiance", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start_prof, count=count_prof), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%radiance = var
-
-         !*** Get radiance_noise
-         call check(NF90_INQ_VARID(grpid(n), "radiance_noise", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start_prof, count=count_prof), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%radiance_noise = var
-
-         !*** Get radiance_error
-         call check(NF90_INQ_VARID(grpid(n), "radiance_error", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start_prof, count=count_prof), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%radiance_error = var
-
-         !*** Get irradiance
-         call check(NF90_INQ_VARID(grpid(n), "irradiance", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start_prof, count=count_prof), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%irradiance = var
-
-         !*** Get irradiance_noise
-         call check(NF90_INQ_VARID(grpid(n), "irradiance_noise", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start_prof, count=count_prof), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%irradiance_noise = var
-
-         !*** Get irradiance_error
-         call check(NF90_INQ_VARID(grpid(n), "irradiance_error", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start_prof, count=count_prof), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%irradiance_error = var
-
-      end do
-
-      if (outputflag >= 2) then
-         call writelog('*** End of READ_SPECTRUM ***', 1)
-      end if
-
-   end subroutine read_spectrum
-
-!------------------------------------------------------------------------------
-!>
-!------------------------------------------------------------------------------
-   subroutine read_l1b_nc_js(infile, outputflag, measurement, meta, ierr, observer_location, win_ini, instr_errors)
-      !** Input
-      character(len=*), intent(in) :: infile
-      integer, intent(in) :: outputflag
-      integer, intent(in) :: observer_location
-      type(window_ini), dimension(:), intent(in), optional :: win_ini
-      type(instrument_errors), dimension(:), intent(in), optional :: instr_errors
-      !*** Output
-      type(spectrum), dimension(:), allocatable, intent(out) :: measurement
-      type(metadata), intent(out) :: meta
-      integer, intent(out) :: ierr
-      !*** local variables
-      integer :: nstokes_l1b, nst
-      real(double), dimension(4) :: s = (/1.d0, 0.D0, 0.D0, 0.d0/)
-      real(double) :: lambda_shifted, continuum
-      integer :: k, l, i, n, nwin, nwave, imid
-      integer, dimension(:), allocatable :: pixelid
-      integer :: ncid, grpid(3), varid, dimid_lat, dimid_lon, dimid_time, dimid_wave
-      integer :: sx, sy, start2d(2), start3d(3)
-      integer :: time_id, sza_id, vza_id, saz_id, vaz_id, observer_height_id, lon_id, lat_id, elev_id
-      real(double), dimension(:), allocatable :: var
-      character(stringlen) :: spectrum_file, index_info, message
-
-      !-------------------------------------------------------------------
-
-      !*** Set nstokes of measurement same to nstokes of model here
-      nstokes_l1b = nstokes
-
-      i = INDEX(infile, '.nc')
-      index_info = infile(i + 4:)
-      spectrum_file = trim(infile(:i + 2))
-
-      ! Extract index in x-dimension to be read
-      i = INDEX(index_info, 'X')
-      read (index_info(i + 1:i + 6), '(I6)') sx
-
-      ! Extract index in y-dimension to be read
-      i = INDEX(index_info, 'Y')
-      read (index_info(i + 1:i + 6), '(I6)') sy
-
-      if (outputflag >= 2) then
-         call writelog('*** Start of READ_L1B_NC_JS ***', 1)
-         call writelog('L1B file: '//trim(spectrum_file), 1)
-      end if
-
-      !*** Read spectrum
-      call check(nf90_open(trim(spectrum_file), nf90_nowrite, ncid), ierr)
-      if (ierr .ne. 0) then
-         ierr = ierr_open
-         call writelog('READ_L1B_NC_JS: error opening file: '//trim(spectrum_file), 6)
-         return
-      end if
-
-      start2d = (/sx, sy/)
-
-      !*** Geometry
-      call check(nf90_inq_varid(ncid, "sza", sza_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_inq_varid(ncid, "vza", vza_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_inq_varid(ncid, "saa", saz_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_inq_varid(ncid, "vaa", vaz_id), ierr)
-      if (ierr .ne. 0) return
-      if (observer_location .eq. 1) then
-         call check(nf90_inq_varid(ncid, "observer_height", observer_height_id), ierr)
-         if (ierr .ne. 0) return
-      end if
-
-      call check(nf90_get_var(ncid, sza_id, meta%sza, start=start2d), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, vza_id, meta%iza, start=start2d), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, saz_id, meta%saz, start=start2d), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, vaz_id, meta%iaz, start=start2d), ierr)
-      if (ierr .ne. 0) return
-      meta%phi = dabs(meta%iaz - meta%saz)
-      if (observer_location .eq. 1) then
-         call check(nf90_get_var(ncid, observer_height_id, meta%observer_height, start=start2d), ierr)
-         if (ierr .ne. 0) return
-      end if
-
-      !*** Geodata
-      call check(nf90_inq_varid(ncid, "latitude", lat_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_inq_varid(ncid, "longitude", lon_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_inq_varid(ncid, "elevation", elev_id), ierr)
-      if (ierr .ne. 0) return
-
-      call check(nf90_get_var(ncid, lat_id, meta%lat(1), start=start2d), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, lon_id, meta%lon(1), start=start2d), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, elev_id, meta%surface_elevation, start=start2d), ierr)
-      if (ierr .ne. 0) return
-
-      !*** Timedata
-      call check(NF90_INQ_VARID(ncid, "time", time_id), ierr)
-      if (ierr .ne. 0) return
-      call check(NF90_GET_VAR(ncid, time_id, meta%time(1:6)), ierr)
-      if (ierr .ne. 0) return
-
-      !*** For now the center coordinates are used as corner coordinates as well
-      meta%lon(:) = meta%lon(1)
-      meta%lat(:) = meta%lat(1)
-
-      call check(nf90_inq_grps(ncid, nwin, grpid), ierr)
-      if (ierr .ne. 0) return
-
-      allocate (measurement(nwin), stat=ierr)
-      if (ierr .ne. 0) return
-
-      measurement(:)%sza = meta%sza
-      measurement(:)%iza = meta%iza
-      measurement(:)%phi = meta%phi
-      measurement(:)%observer_height = meta%observer_height
-
-      start3d = (/1, sx, sy/)
-
-      do n = 1, nwin
-
-         !*** Get number of spectral points
-         call check(NF90_INQ_DIMID(grpid(n), "nwave", dimid_wave), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_INQUIRE_DIMENSION(grpid(n), dimid_wave, len=nwave), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%nwave = nwave
-
-         !*** Deallocate/allocate
-         if (.not. allocated(measurement(n)%measurement_stokesc) .and. nstokes_l1b > 1) then
-            allocate (measurement(n)%measurement_stokesc(nstokes_l1b))
-         end if
-         if (.not. allocated(measurement(n)%wavelength)) then
-            allocate ( &
-               measurement(n)%wavelength(measurement(n)%nwave), &
-               measurement(n)%radiance(measurement(n)%nwave), &
-               measurement(n)%mask(measurement(n)%nwave), &
-               measurement(n)%radiance_noise(measurement(n)%nwave), &
-               measurement(n)%radiance_error(measurement(n)%nwave), &
-               measurement(n)%irradiance(measurement(n)%nwave), &
-               measurement(n)%irradiance_noise(measurement(n)%nwave), &
-               measurement(n)%irradiance_error(measurement(n)%nwave))
-         elseif (size(measurement(n)%wavelength) .ne. measurement(n)%nwave) then
-            deallocate (measurement(n)%wavelength)
-            deallocate (measurement(n)%radiance)
-            deallocate (measurement(n)%mask)
-            deallocate (measurement(n)%radiance_noise)
-            deallocate (measurement(n)%radiance_error)
-            deallocate (measurement(n)%irradiance)
-            deallocate (measurement(n)%irradiance_noise)
-            deallocate (measurement(n)%irradiance_error)
-            deallocate (measurement(n)%measurement_stokesc)
-            allocate ( &
-               measurement(n)%wavelength(measurement(n)%nwave), &
-               measurement(n)%radiance(measurement(n)%nwave), &
-               measurement(n)%mask(measurement(n)%nwave), &
-               measurement(n)%radiance_noise(measurement(n)%nwave), &
-               measurement(n)%radiance_error(measurement(n)%nwave), &
-               measurement(n)%irradiance(measurement(n)%nwave), &
-               measurement(n)%irradiance_noise(measurement(n)%nwave), &
-               measurement(n)%irradiance_error(measurement(n)%nwave))
-         end if
-
-         if (allocated(var)) deallocate (var)
-         allocate (var(nwave))
-         !*** Get wavelengths
-         call check(NF90_INQ_VARID(grpid(n), "wavelength", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start3d), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%wavelength = var
-
-         !*** Get radiance
-         call check(NF90_INQ_VARID(grpid(n), "radiance", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start3d), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%radiance = var
-
-         !*** Get radiance_noise
-         call check(NF90_INQ_VARID(grpid(n), "radiance_noise", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start3d), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%radiance_noise = var
-
-         !*** Get radiance_error
-         call check(NF90_INQ_VARID(grpid(n), "radiance_error", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start3d), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%radiance_error = var
-
-         !*** Get irradiance
-         call check(NF90_INQ_VARID(grpid(n), "irradiance", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start3d), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%irradiance = var
-
-         !*** Get irradiance_noise
-         call check(NF90_INQ_VARID(grpid(n), "irradiance_noise", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start3d), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%irradiance_noise = var
-
-         !*** Get irradiance_error
-         call check(NF90_INQ_VARID(grpid(n), "irradiance_error", varid), ierr)
-         if (ierr .ne. 0) return
-         call check(NF90_GET_VAR(grpid(n), varid, var, start=start3d), ierr)
-         if (ierr .ne. 0) return
-         measurement(n)%irradiance_error = var
-
-         measurement(n)%mask = 0
-         if (nstokes_l1b > 1) then
-            do nst = 1, nstokes_l1b
-               measurement(n)%measurement_stokesc(nst) = s(nst)
-            end do
-         end if
-
-         if (present(instr_errors)) then
-            do l = 1, size(win_ini)
-
-               if (win_ini(l)%wave_start .le. maxval(measurement(n)%wavelength) .and. &
-                   win_ini(l)%wave_stop .ge. maxval(measurement(n)%wavelength)) then
-                  !*** Add instrument errors specified in INI/errors.in
-                  continuum = maxval(measurement(n)%radiance(:))
-                  imid = measurement(n)%nwave/2
-                  !*** instrument response function !HH: this should be moved to win_ini%fwhm
-                  !            measurement(n)%fwhm =  measurement(n)%fwhm*(1.d0+0.01d0*instr_errors(n)%isrf)
-                  do k = 1, measurement(n)%nwave
-                     !*** radiometric offset calibration error (additive constant)
-                    measurement(n)%radiance(k) = max(0.d0, measurement(n)%radiance(k) + 0.01d0*instr_errors(n)%rad_offset*continuum)
-
-                     !*** shift/squeeze in Earth spectrum wavelength grid
-                     measurement(n)%wavelength(k) = measurement(n)%wavelength(k) + instr_errors(n)%earth_shift &
-                                   + instr_errors(n)%earth_squeeze1*(measurement(n)%wavelength(k) - measurement(n)%wavelength(imid))
-
-                     !*** radiometric gain calibration error (scaling factor)
-                     measurement(n)%radiance(k) = measurement(n)%radiance(k)*(1.d0 + 0.01d0*instr_errors(n)%rad_gain)
-                  end do
-               end if
-            end do
-         end if
-
-      end do
-
-      ! Close NetCDF file
-      call check(nf90_close(ncid), ierr)
-
-100   if (ierr .ne. 0) then
-         if (outputflag >= 2) then
-            write (message, '(a)') 'READ_L1B_NC_JS: Error opening/reading spectrum_file '//trim(spectrum_file)
-            call writelog(message, 6)
-         end if
-         return
-      end if
-
-      if (outputflag >= 2) then
-         call writelog('*** End of READ_L1B_NC_JS ***', 1)
-      end if
-
-   end subroutine read_l1b_nc_js
-
-!------------------------------------------------------------------------------
-!>
-!------------------------------------------------------------------------------
-   subroutine read_l1b_nc_ls(infile, outputflag, measurement, meta, ierr, synthetic_input_flag, observer_location, win_ini, instr_errors)
+   subroutine read_l1b(infile, outputflag, measurement, meta, ierr, synthetic_input_flag, observer_location, win_ini, instr_errors)
       !** Input
       character(len=*), intent(in) :: infile
       integer, intent(in) :: outputflag
@@ -507,67 +72,36 @@ contains
          return
       end if
 
+      ! location of data in netcdf file
       start1d = (/sy/)
+      start2d = (/sx, sy/)
+      start3d = (/1, sx, sy/)
 
       !*** Timedata
-      ! call get_var(ncid, "time", meta%seconds_since_reference, start1d)
-      call check(nf90_inq_varid(ncid, "time", time_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, time_id, meta%seconds_since_reference, start=start1d), ierr)
-      if (ierr .ne. 0) return
-
-      start2d = (/sx, sy/)
+      call get_var(ncid, "time", meta%seconds_since_reference, start1d)
 
       !*** Geodata
-      call check(nf90_inq_varid(ncid, "latitude", lat_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, lat_id, meta%lat(1), start=start2d), ierr)
-      if (ierr .ne. 0) return
-
-      call check(nf90_inq_varid(ncid, "longitude", lon_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, lon_id, meta%lon(1), start=start2d), ierr)
-      if (ierr .ne. 0) return
-
-      !*** Geometry
-      call check(nf90_inq_varid(ncid, "solar_zenith_angle", sza_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, sza_id, meta%sza, start=start2d), ierr)
-      if (ierr .ne. 0) return
-
-      call check(nf90_inq_varid(ncid, "viewing_zenith_angle", vza_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, vza_id, meta%iza, start=start2d), ierr)
-      if (ierr .ne. 0) return
-
-      call check(nf90_inq_varid(ncid, "solar_azimuth_angle", saa_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, saa_id, meta%saz, start=start2d), ierr)
-      if (ierr .ne. 0) return
-
-      call check(nf90_inq_varid(ncid, "viewing_azimuth_angle", vaa_id), ierr)
-      if (ierr .ne. 0) return
-      call check(nf90_get_var(ncid, vaa_id, meta%iaz, start=start2d), ierr)
-      if (ierr .ne. 0) return
-
-      if (observer_location .eq. 1) then
-         call check(nf90_inq_varid(ncid, "observer_altitude", observer_altitude_id), ierr)
-         if (ierr .ne. 0) return
-         call check(nf90_get_var(ncid, observer_altitude_id, meta%observer_height, start=start2d), ierr)
-         if (ierr .ne. 0) return
-      end if
-
-      meta%phi = dabs(meta%iaz - meta%saz)
-
-      !*** For now the center coordinates are used as corner coordinates as well
+      call get_var(ncid, "latitude", meta%lat(1), start2d)
+      call get_var(ncid, "longitude", meta%lon(1), start2d)
+      ! For now, the center coordinates are used as corner coordinates as well
       meta%lon(:) = meta%lon(1)
       meta%lat(:) = meta%lat(1)
 
-      call check(nf90_inq_grps(ncid, nband, grpid), ierr)
-      if (ierr .ne. 0) return
+      !*** Geometry
+      call get_var(ncid, "solar_zenith_angle", meta%sza, start2d)
+      call get_var(ncid, "viewing_zenith_angle", meta%iza, start2d)
+      call get_var(ncid, "solar_azimuth_angle", meta%saz, start2d)
+      call get_var(ncid, "viewing_azimuth_angle", meta%iaz, start2d)
+      if (observer_location .eq. 1) then
+         call get_var(ncid, "observer_altitude", meta%observer_height, start2d)
+      end if
+      ! calculate relative azimuth angle
+      meta%phi = dabs(meta%iaz - meta%saz)
 
+      ! Set up measurement
       ! Get nwin from settings file
       nwin = size(win_ini)
+      print*, "TODO LS: In settings file is variable for number of windows. Use that instead."
 
       allocate (measurement(nwin), stat=ierr)
       if (ierr .ne. 0) return
@@ -580,7 +114,8 @@ contains
          measurement(:)%observer_height = meta%observer_height
       end if
 
-      start3d = (/1, sx, sy/)
+      call check(nf90_inq_grps(ncid, nband, grpid), ierr)
+      if (ierr .ne. 0) return
 
       do win = 1, nwin
          ! For each fit window get the wavelength and radiance from the correct band in the data
@@ -593,15 +128,11 @@ contains
             call check(nf90_inquire_dimension(grpid(band), dimid_wave, len=nwave), ierr)
             if (ierr .ne. 0) return
 
-            ! dummy variable to store wavelength grid in
+            ! Get wavelengths of the current band and write them into dummy variable var
             if (allocated(var)) deallocate (var)
             allocate (var(nwave))
-
-            ! Get wavelengths of the current band
-            call check(nf90_inq_varid(grpid(band), "wavelength", varid), ierr)
-            if (ierr .ne. 0) return
-            call check(nf90_get_var(grpid(band), varid, var, start=start3d), ierr)
-            if (ierr .ne. 0) return
+            call get_vector_var(grpid(band), "wavelength", var, start3d)
+            print*, "TODO LS: wavelength shouldn't have the dimension start3d."
 
             ! Check if current band surrounds current fit window. If not, go to the next band
             ! This check needs to take into account the wave boundary offset in multiples of the fwhm
@@ -609,6 +140,7 @@ contains
                .and. win_ini(win)%wave_stop + win_ini(win)%fwhm * win_ini(win)%wvbd <= var(nwave))) then
                if (band == nband) then
                   print*, "ERROR IN READ_L1B_NC_LS: No bands surround fit window."
+                  print*, "TODO LS: Exit cleanly."
                end if
                cycle
             end if
@@ -642,34 +174,12 @@ contains
                allocate (measurement(win)%measurement_stokesc(nstokes_l1b))
             end if
 
-            !*** Get wavelengths
-            call check(nf90_inq_varid(grpid(band), "wavelength", varid), ierr)
-            if (ierr .ne. 0) return
-            call check(nf90_get_var(grpid(band), varid, var, start=start3d), ierr)
-            if (ierr .ne. 0) return
-            measurement(win)%wavelength = var
-
-            !*** Get radiance
-            call check(nf90_inq_varid(grpid(band), "radiance", varid), ierr)
-            if (ierr .ne. 0) return
-            call check(nf90_get_var(grpid(band), varid, var, start=start3d), ierr)
-            if (ierr .ne. 0) return
-            measurement(win)%radiance = var
-            
-            !*** Get radiance_noise
-            call check(nf90_inq_varid(grpid(band), "radiance_noise", varid), ierr)
-            if (ierr .ne. 0) return
-            call check(nf90_get_var(grpid(band), varid, var, start=start3d), ierr)
-            if (ierr .ne. 0) return
-            measurement(win)%radiance_noise = var
-            
+            !*** Get spectrum
+            call get_vector_var(grpid(band), "wavelength", measurement(win)%wavelength, start3d)
+            call get_vector_var(grpid(band), "radiance", measurement(win)%radiance, start3d)
+            call get_vector_var(grpid(band), "radiance_noise", measurement(win)%radiance_noise, start3d)
             if (synthetic_input_flag == 1) then
-               !*** Get radiance_error
-               call check(nf90_inq_varid(grpid(band), "radiance_error", varid), ierr)
-               if (ierr .ne. 0) return
-               call check(nf90_get_var(grpid(band), varid, var, start=start3d), ierr)
-               if (ierr .ne. 0) return
-               measurement(win)%radiance_error = var
+               call get_vector_var(grpid(band), "radiance_error", measurement(win)%radiance_error, start3d)
             end if
 
             measurement(win)%mask = 0
@@ -698,7 +208,7 @@ contains
          call writelog('*** End of READ_L1B_NC_LS ***', 1)
       end if
 
-   end subroutine read_l1b_nc_ls
+   end subroutine read_l1b
 
 
 
@@ -723,150 +233,26 @@ contains
 
 
 
-!------------------------------------------------------------------------------
-!  Read in synthetic spectrum in L1B format/units
-!------------------------------------------------------------------------------
-   subroutine read_l1b(spectrum_file, outputflag, measurement, meta, ierr, win_ini, instr_errors)
-      !** Input
-      character(len=*), intent(in) :: spectrum_file
-      type(window_ini), dimension(:), intent(in), optional :: win_ini
-      type(instrument_errors), dimension(:), intent(in), optional :: instr_errors
-      integer, intent(in) :: outputflag
-      !*** Output
-      type(spectrum), dimension(:), allocatable, intent(out) :: measurement
-      type(metadata), intent(out) :: meta
-      integer, intent(out) :: ierr
-      !*** local variables
-      integer :: nstokes_l1b
-      real(double), dimension(4) :: s = (/1.d0, 0.D0, 0.D0, 0.d0/)
-      integer :: k, l, n, nwin_in, io, imid, nst
-      real(double) :: lambda_shifted, continuum, sza, iza, saz, iaz, fwhm, time(6)
-      character(stringlen) :: message
-      logical :: iopen
-      !-------------------------------------------------------------------
+   subroutine get_vector_var(ncid, varname, values, start)
+      ! input
+      integer, intent(in) :: ncid
+      character(len=*), intent(in) :: varname
+      integer, dimension(:), intent(in) :: start
+      ! output
+      real(double), dimension(:), intent(out) :: values
+      ! local variables
+      integer :: varid, ierr_inq, ierr_get
 
-      if (outputflag >= 2) then
-         call writelog('*** Start of READ_L1B ***', 1)
-         call writelog('L1B file: '//trim(spectrum_file), 1)
-      end if
+      call check(nf90_inq_varid(ncid, varname, varid), ierr_inq)
+      call check(nf90_get_var(ncid, varid, values, start=start), ierr_get)
 
-      !*** Set nstokes of measurement same to nstokes of model here
-      nstokes_l1b = nstokes
-      !$OMP critical
-      open (newunit=io, FILE=trim(spectrum_file), FORM='FORMATTED', status='old', action='read', iostat=ierr)
-      !$OMP end critical
-      if (ierr .ne. 0) goto 100
-      !*** Get instrument info
-      read (io, *, iostat=ierr, err=100) meta%time
-      do k = 1, 5
-         read (io, *, iostat=ierr, err=100) meta%lat(k), meta%lon(k) !1: latitude and longitude of pixel corners
-         !2 = right,upper corner
-      end do                          !3 = right,lower corner etc.
-      read (io, *, iostat=ierr, err=100) meta%surface_elevation
-      read (io, *, iostat=ierr, err=100) sza, iza, saz, iaz
-      read (io, *, iostat=ierr, err=100) nwin_in
-      allocate (measurement(nwin_in), stat=ierr)
-      measurement(:)%sza = sza
-      measurement(:)%iza = iza
-      measurement(:)%phi = dabs(iaz - saz)
-      !*** Get spectral measurements
-      do n = 1, nwin_in
-         read (io, *, iostat=ierr, err=100) measurement(n)%nwave
-         read (io, *, iostat=ierr, err=100) fwhm
-
-         if (.not. allocated(measurement(n)%measurement_stokesc) .and. nstokes_l1b > 1) then
-            allocate (measurement(n)%measurement_stokesc(nstokes_l1b))
-         end if
-         if (.not. allocated(measurement(n)%wavelength)) then
-            allocate ( &
-               measurement(n)%wavelength(measurement(n)%nwave), &
-               measurement(n)%radiance(measurement(n)%nwave), &
-               measurement(n)%mask(measurement(n)%nwave), &
-               measurement(n)%radiance_noise(measurement(n)%nwave), &
-               measurement(n)%radiance_error(measurement(n)%nwave), &
-               measurement(n)%irradiance(measurement(n)%nwave), &
-               measurement(n)%irradiance_noise(measurement(n)%nwave), &
-               measurement(n)%irradiance_error(measurement(n)%nwave))
-         elseif (size(measurement(n)%wavelength) .ne. measurement(n)%nwave) then
-            deallocate (measurement(n)%wavelength)
-            deallocate (measurement(n)%radiance)
-            deallocate (measurement(n)%mask)
-            deallocate (measurement(n)%radiance_noise)
-            deallocate (measurement(n)%radiance_error)
-            deallocate (measurement(n)%irradiance)
-            deallocate (measurement(n)%irradiance_noise)
-            deallocate (measurement(n)%irradiance_error)
-            deallocate (measurement(n)%measurement_stokesc)
-            allocate ( &
-               measurement(n)%wavelength(measurement(n)%nwave), &
-               measurement(n)%radiance(measurement(n)%nwave), &
-               measurement(n)%mask(measurement(n)%nwave), &
-               measurement(n)%radiance_noise(measurement(n)%nwave), &
-               measurement(n)%radiance_error(measurement(n)%nwave), &
-               measurement(n)%irradiance(measurement(n)%nwave), &
-               measurement(n)%irradiance_noise(measurement(n)%nwave), &
-               measurement(n)%irradiance_error(measurement(n)%nwave))
-         end if
-         do k = 1, measurement(n)%nwave
-            read (io, *, iostat=ierr, err=100) measurement(n)%wavelength(k), &
-               measurement(n)%radiance(k), &
-               measurement(n)%radiance_noise(k), &
-               measurement(n)%radiance_error(k), &
-               measurement(n)%irradiance(k), &
-               measurement(n)%irradiance_noise(k), &
-               measurement(n)%irradiance_error(k)
-
-         end do
-
-         measurement(n)%mask = 0
-         if (nstokes_l1b > 1) then
-            do nst = 1, nstokes_l1b
-               measurement(n)%measurement_stokesc(nst) = s(nst)
-            end do
-         end if
-         if (present(instr_errors)) then
-            do l = 1, size(win_ini)
-
-               if (win_ini(l)%wave_start .le. maxval(measurement(n)%wavelength) .and. &
-                   win_ini(l)%wave_stop .ge. maxval(measurement(n)%wavelength)) then
-                  !*** Add instrument errors specified in INI/errors.in
-                  continuum = maxval(measurement(n)%radiance(:))
-                  imid = measurement(n)%nwave/2
-                  !*** instrument response function !HH: this should be moved to win_ini%fwhm
-                  !            measurement(n)%fwhm =  measurement(n)%fwhm*(1.d0+0.01d0*instr_errors(n)%isrf)
-                  do k = 1, measurement(n)%nwave
-                     !*** radiometric offset calibration error (additive constant)
-                    measurement(n)%radiance(k) = max(0.d0, measurement(n)%radiance(k) + 0.01d0*instr_errors(n)%rad_offset*continuum)
-
-                     !*** shift/squeeze in Earth spectrum wavelength grid
-                     measurement(n)%wavelength(k) = measurement(n)%wavelength(k) + instr_errors(n)%earth_shift &
-                                   + instr_errors(n)%earth_squeeze1*(measurement(n)%wavelength(k) - measurement(n)%wavelength(imid))
-
-                     !*** radiometric gain calibration error (scaling factor)
-                     measurement(n)%radiance(k) = measurement(n)%radiance(k)*(1.d0 + 0.01d0*instr_errors(n)%rad_gain)
-                  end do
-               end if
-            end do
-         end if
-
-      end do
-      close (io)
-
-100   if (ierr .ne. 0) then
-         if (outputflag >= 2) then
-            write (message, '(a)') 'READ_L1B: Error opening/reading spectrum_file '//trim(spectrum_file)
-            call writelog(message, 6)
-         end if
-         inquire (unit=io, opened=iopen)
-         if (iopen) close (io)
+      if (ierr_inq /= 0 .or. ierr_get /= 0) then
+         print*, "spectrum_interface_retrieve.f90: ERROR reading variable ", varname
          return
       end if
+   end subroutine get_vector_var
 
-      if (outputflag >= 2) then
-         call writelog('*** End of READ_L1B ***', 1)
-      end if
 
-   end subroutine read_l1b
 
 !------------------------------------------------------------------------------
 !> @details This routine gets the ISRF on the appropriate spectral grids
