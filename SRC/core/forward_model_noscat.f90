@@ -217,7 +217,7 @@ contains
          ! All layers below natm_upwelling + 1 are fully transected by upwelling beam of radiation
          amf(:, natm_upwelling+1:natm) = amf(:, natm_upwelling+1:natm) + 1./cos(dble(iza)/180.*PI)
          ! Observer is somewhere between layer boundaries natm_upwelling and natm_upwelling + 1.
-         ! This layer is only partly transected by upwelling beam of radiation.
+         ! This layer is only partially transected by upwelling beam of radiation.
          ! Weigh layer logarithmically to account for pressure profile.
          amf_weight = (log(observer_height) - log(atm_xs%z(natm_upwelling+1))) &
                      /(log(atm_xs%z(natm_upwelling)) - log(atm_xs%z(natm_upwelling+1)))

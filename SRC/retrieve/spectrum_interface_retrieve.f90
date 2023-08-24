@@ -39,8 +39,11 @@ contains
       integer :: ncid, grpid(3), varid, dimid_lat, dimid_lon, dimid_time, dimid_wave
       integer :: sx, sy, start1d(1), start2d(2), start3d(3)
       integer :: time_id, sza_id, vza_id, saa_id, vaa_id, observer_altitude_id, lon_id, lat_id! , surface_elevation_id
-      real(double), dimension(:), allocatable :: var
+      real(double), dimension(:), allocatable :: wavelength
+      real(double) :: min_req_wavelength, max_req_wavelength
+      integer :: min_index, max_index
       character(stringlen) :: spectrum_file, index_info, message
+      real(double), dimension(:), allocatable :: var ! TODO: delete this
 
       !-------------------------------------------------------------------
 
@@ -60,7 +63,7 @@ contains
       read (index_info(i + 1:i + 6), '(I6)') sy
 
       if (outputflag >= 2) then
-         call writelog('*** Start of READ_L1B_NC_LS ***', 1)
+         call writelog('*** Start of READ_L1B ***', 1)
          call writelog('L1B file: '//trim(spectrum_file), 1)
       end if
 
@@ -68,7 +71,7 @@ contains
       call check(nf90_open(trim(spectrum_file), nf90_nowrite, ncid), ierr)
       if (ierr .ne. 0) then
          ierr = ierr_open
-         call writelog('READ_L1B_NC_LS: error opening file: '//trim(spectrum_file), 6)
+         call writelog('READ_L1B: error opening file: '//trim(spectrum_file), 6)
          return
       end if
 
@@ -78,22 +81,22 @@ contains
       start3d = (/1, sx, sy/)
 
       !*** Timedata
-      call get_var(ncid, "time", meta%seconds_since_reference, start1d)
+      call netcdf_get_var(ncid, "time", meta%seconds_since_reference, start1d)
 
       !*** Geodata
-      call get_var(ncid, "latitude", meta%lat(1), start2d)
-      call get_var(ncid, "longitude", meta%lon(1), start2d)
+      call netcdf_get_var(ncid, "latitude", meta%lat(1), start2d)
+      call netcdf_get_var(ncid, "longitude", meta%lon(1), start2d)
       ! For now, the center coordinates are used as corner coordinates as well
-      meta%lon(:) = meta%lon(1)
       meta%lat(:) = meta%lat(1)
+      meta%lon(:) = meta%lon(1)
 
       !*** Geometry
-      call get_var(ncid, "solar_zenith_angle", meta%sza, start2d)
-      call get_var(ncid, "viewing_zenith_angle", meta%iza, start2d)
-      call get_var(ncid, "solar_azimuth_angle", meta%saz, start2d)
-      call get_var(ncid, "viewing_azimuth_angle", meta%iaz, start2d)
+      call netcdf_get_var(ncid, "solar_zenith_angle", meta%sza, start2d)
+      call netcdf_get_var(ncid, "viewing_zenith_angle", meta%iza, start2d)
+      call netcdf_get_var(ncid, "solar_azimuth_angle", meta%saz, start2d)
+      call netcdf_get_var(ncid, "viewing_azimuth_angle", meta%iaz, start2d)
       if (observer_location .eq. 1) then
-         call get_var(ncid, "observer_altitude", meta%observer_height, start2d)
+         call netcdf_get_var(ncid, "observer_altitude", meta%observer_height, start2d)
       end if
       ! calculate relative azimuth angle
       meta%phi = dabs(meta%iaz - meta%saz)
@@ -101,7 +104,6 @@ contains
       ! Set up measurement
       ! Get nwin from settings file
       nwin = size(win_ini)
-      print*, "TODO LS: In settings file is variable for number of windows. Use that instead."
 
       allocate (measurement(nwin), stat=ierr)
       if (ierr .ne. 0) return
@@ -128,19 +130,18 @@ contains
             call check(nf90_inquire_dimension(grpid(band), dimid_wave, len=nwave), ierr)
             if (ierr .ne. 0) return
 
-            ! Get wavelengths of the current band and write them into dummy variable var
-            if (allocated(var)) deallocate (var)
-            allocate (var(nwave))
-            call get_vector_var(grpid(band), "wavelength", var, start3d)
-            print*, "TODO LS: wavelength shouldn't have the dimension start3d."
+            ! Get wavelengths of the current band and write them into dummy variable wavelength
+            if (allocated(wavelength)) deallocate(wavelength)
+            allocate(wavelength(nwave))
+            call netcdf_get_vector_var(grpid(band), "wavelength", wavelength, start=(/1/))
 
             ! Check if current band surrounds current fit window. If not, go to the next band
             ! This check needs to take into account the wave boundary offset in multiples of the fwhm
-            if (.not. (var(1) <= win_ini(win)%wave_start - win_ini(win)%fwhm * win_ini(win)%wvbd &
-               .and. win_ini(win)%wave_stop + win_ini(win)%fwhm * win_ini(win)%wvbd <= var(nwave))) then
+            min_req_wavelength = win_ini(win)%wave_start - win_ini(win)%fwhm * win_ini(win)%wvbd
+            max_req_wavelength = win_ini(win)%wave_stop + win_ini(win)%fwhm * win_ini(win)%wvbd
+            if (.not. (wavelength(1) <= min_req_wavelength .and. max_req_wavelength <= wavelength(nwave))) then
                if (band == nband) then
-                  print*, "ERROR IN READ_L1B_NC_LS: No bands surround fit window."
-                  print*, "TODO LS: Exit cleanly."
+                  print*, "ERROR IN READ_L1B: No bands surround fit window."
                end if
                cycle
             end if
@@ -175,11 +176,11 @@ contains
             end if
 
             !*** Get spectrum
-            call get_vector_var(grpid(band), "wavelength", measurement(win)%wavelength, start3d)
-            call get_vector_var(grpid(band), "radiance", measurement(win)%radiance, start3d)
-            call get_vector_var(grpid(band), "radiance_noise", measurement(win)%radiance_noise, start3d)
+            measurement(win)%wavelength = wavelength
+            call netcdf_get_vector_var(grpid(band), "radiance", measurement(win)%radiance, start3d)
+            call netcdf_get_vector_var(grpid(band), "radiance_noise", measurement(win)%radiance_noise, start3d)
             if (synthetic_input_flag == 1) then
-               call get_vector_var(grpid(band), "radiance_error", measurement(win)%radiance_error, start3d)
+               call netcdf_get_vector_var(grpid(band), "radiance_error", measurement(win)%radiance_error, start3d)
             end if
 
             measurement(win)%mask = 0
@@ -188,6 +189,42 @@ contains
                   measurement(win)%measurement_stokesc(nst) = s(nst)
                end do
             end if
+
+            print*, "TESTING BEFORE"
+            ! Cut down spectrum to necessary wavelength range for testing purposes
+            min_index = maxloc(wavelength, dim=1, mask=wavelength<=min_req_wavelength)
+            max_index = minloc(wavelength, dim=1, mask=wavelength>=max_req_wavelength)
+            nwave = max_index - min_index + 1
+
+            measurement(win)%nwave = nwave
+
+            if (allocated(var)) then
+               deallocate(var)
+            end if
+            allocate(var(nwave))
+
+            var = measurement(win)%wavelength(min_index:max_index)
+            deallocate(measurement(win)%wavelength)
+            allocate(measurement(win)%wavelength(nwave))
+            measurement(win)%wavelength = var
+
+            var = measurement(win)%radiance(min_index:max_index)
+            deallocate(measurement(win)%radiance)
+            allocate(measurement(win)%radiance(nwave))
+            measurement(win)%radiance = var
+
+            var = measurement(win)%radiance_noise(min_index:max_index)
+            deallocate(measurement(win)%radiance_noise)
+            allocate(measurement(win)%radiance_noise(nwave))
+            measurement(win)%radiance_noise = var
+
+            if (synthetic_input_flag == 1) then
+               var = measurement(win)%radiance_error(min_index:max_index)
+               deallocate(measurement(win)%radiance_error)
+               allocate(measurement(win)%radiance_error(nwave))
+               measurement(win)%radiance_error = var
+            end if
+            print*, "TESTING AFTER"
 
             exit
          end do
@@ -198,21 +235,21 @@ contains
 
 100   if (ierr .ne. 0) then
          if (outputflag >= 2) then
-            write (message, '(a)') 'READ_L1B_NC_LS: Error opening/reading spectrum_file '//trim(spectrum_file)
+            write (message, '(a)') 'READ_L1B: Error opening/reading spectrum_file '//trim(spectrum_file)
             call writelog(message, 6)
          end if
          return
       end if
 
       if (outputflag >= 2) then
-         call writelog('*** End of READ_L1B_NC_LS ***', 1)
+         call writelog('*** End of READ_L1B***', 1)
       end if
 
    end subroutine read_l1b
 
 
 
-   subroutine get_var(ncid, varname, values, start)
+   subroutine netcdf_get_var(ncid, varname, values, start)
       ! input
       integer, intent(in) :: ncid
       character(len=*), intent(in) :: varname
@@ -229,11 +266,11 @@ contains
          print*, "spectrum_interface_retrieve.f90: ERROR reading variable ", varname
          return
       end if
-   end subroutine get_var
+   end subroutine netcdf_get_var
 
 
 
-   subroutine get_vector_var(ncid, varname, values, start)
+   subroutine netcdf_get_vector_var(ncid, varname, values, start)
       ! input
       integer, intent(in) :: ncid
       character(len=*), intent(in) :: varname
@@ -250,7 +287,7 @@ contains
          print*, "spectrum_interface_retrieve.f90: ERROR reading variable ", varname
          return
       end if
-   end subroutine get_vector_var
+   end subroutine netcdf_get_vector_var
 
 
 

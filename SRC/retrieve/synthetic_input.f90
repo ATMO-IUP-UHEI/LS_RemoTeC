@@ -6,7 +6,7 @@ module synthetic_input_module
    use read_errors_module, only: instrument_errors, read_errors
    use spectrum_internal_module, only: spectrum
    use forward_model_module, only: absorbers, window_ini, window_spectrum, aero
-   use atmosphere_interface_module, only: atmospheric_scenario, read_atmosphere, read_atmosphere_nc_js
+   use atmosphere_interface_module, only: atmospheric_scenario, read_atm
    use atmosphere_internal_module, only: atmosphere_interpolate, altitude_grid
    use retrieval_module, only: get_absorbers
    use auxiliary_routines_module, only: check
@@ -339,11 +339,7 @@ contains
 !*** as used for creating the synthetic spectrum (only if parameters are negative in retrieval.ini)
 !    call use_real_cirrus(meteo_file, aerosol_ini)
 
-      if (atmflag .EQ. 4) then
-         call read_atmosphere_nc_js(meteo_file, outputflag, scenario_true, meta, ierr, errors_true)
-      else
-         call read_atmosphere(meteo_file, outputflag, scenario_true, meta, ierr, errors_true)
-      end if
+      call read_atm(meteo_file, outputflag, scenario_true, meta, ierr, errors_true)
       if (ierr .ne. 0) return
 
 !*** Interpolate input meteo data (to get win)

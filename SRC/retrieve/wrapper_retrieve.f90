@@ -1,6 +1,6 @@
 module wrapper_retrieve_module
    use header_module
-   use atmosphere_interface_module, only: atmospheric_scenario, read_atmosphere, read_atmosphere_nc_js, read_ecmwf, read_aux
+   use atmosphere_interface_module, only: atmospheric_scenario, read_atm
    use retrieval_module, only: retrieval_data, retrieval, aero, &
                                Mie_lut, cirrus_table, read_aerosol_netcdf, read_cirrus_netcdf, &
                                window_ini, settings_flags, file_paths, altitude_grid, read_settings, read_win_xsdb
@@ -198,33 +198,24 @@ contains
       !*** a priori value for fluorescence
       varying%meta%FS = 0.d0
 
-      !*** Read synthetic data
+      !*** Read data
       !*** Get atmosphere file name from atm(i)
       varying%filename = trim(atm)
 
-      !*** synthetic meteo data
-      if (fixed%flag%atm == 1) then      !*** ascii format, pressure grid
+      !*** meteo data
+      if (fixed%flag%atm == 4) then
          varying%meteo_file = trim(fixed%path%meteo)//'ATM_'//trim(varying%filename)
-         call read_atmosphere(varying%meteo_file, fixed%flag%output, varying%atm_scenario, varying%meta, ierr, fixed%meteo_errors)
+         call read_atm(varying%meteo_file, fixed%flag%output, varying%atm_scenario, varying%meta, ierr, fixed%meteo_errors)
          if (ierr .ne. 0) return
-      elseif (fixed%flag%atm == 2) then  !*** ascii format, hybrid grid
-         varying%meteo_file = trim(fixed%path%meteo)//'METEO_'//trim(varying%filename)
-         call read_ecmwf(varying%meteo_file, fixed%flag%output, varying%atm_scenario, ierr)
-         if (ierr .ne. 0) return
-      elseif (fixed%flag%atm == 3) then  !*** MIPrep NetCDF format
-         varying%meteo_file = trim(fixed%path%meteo)//trim(varying%filename)
-         call read_aux(varying%meteo_file, varying%ipixel, fixed%flag%output, varying%atm_scenario, varying%meta, ierr)
-         if (ierr .ne. 0) return
-      elseif (fixed%flag%atm == 4) then      !*** Indianapolis NetCDF format, pressure grid
-         varying%meteo_file = trim(fixed%path%meteo)//'ATM_'//trim(varying%filename)
-         call read_atmosphere_nc_js(varying%meteo_file, fixed%flag%output, varying%atm_scenario, varying%meta, ierr, fixed%meteo_errors)
-         if (ierr .ne. 0) return
+      else
+         print*, "ERROR: READING ATMOSPHERE WITH FLAG ", fixed%flag%atm, " NOT SUPPORTED ANYMORE"
       end if
 
-      !*** synthetic spectrum
+      !*** spectrum
       if (fixed%flag%atm == 4) then
          varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
          call read_l1b(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
+         print*, varying%measurement(1)%wavelength
          if (ierr .ne. 0) return
       else
          print*, "ERROR: READING ATMOSPHERE WITH FLAG ", fixed%flag%atm, " NOT SUPPORTED ANYMORE"
