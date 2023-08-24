@@ -116,6 +116,7 @@ contains
       end if
 
       meta%surface_elevation = atm_scenario%z(nlevel)
+      atm_scenario%surface_pressure = atm_scenario%p(nlevel)
       atm_scenario%surface_elevation = atm_scenario%z(nlevel)
 
       atm_scenario%surface_wspeed = 0.d0
