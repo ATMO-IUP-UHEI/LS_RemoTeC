@@ -98,6 +98,8 @@ contains
          atm_scenario%co(nlevel))
 
       call netcdf_get_vector_var(ncid, "pressure", atm_scenario%p, start3d)
+      ! internally, RemoTeC works with hPa, pressure provided in Pa
+      atm_scenario%p = atm_scenario%p / 100
       call netcdf_get_vector_var(ncid, "temperature", atm_scenario%t, start3d)
       call netcdf_get_vector_var(ncid, "geometric_altitude", atm_scenario%z, start3d)
 

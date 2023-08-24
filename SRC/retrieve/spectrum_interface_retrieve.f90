@@ -190,8 +190,7 @@ contains
                end do
             end if
 
-            print*, "TESTING BEFORE"
-            ! Cut down spectrum to necessary wavelength range for testing purposes
+            ! Cut down spectrum to necessary wavelength range
             min_index = maxloc(wavelength, dim=1, mask=wavelength<=min_req_wavelength)
             max_index = minloc(wavelength, dim=1, mask=wavelength>=max_req_wavelength)
             nwave = max_index - min_index + 1
@@ -224,7 +223,6 @@ contains
                allocate(measurement(win)%radiance_error(nwave))
                measurement(win)%radiance_error = var
             end if
-            print*, "TESTING AFTER"
 
             exit
          end do
