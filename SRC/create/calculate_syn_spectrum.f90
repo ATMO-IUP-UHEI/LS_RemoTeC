@@ -249,27 +249,13 @@ contains
                !*** Open NetCDF file
                call check(nf90_open(trim(fname_nc), nf90_nowrite, ncid), ierr)
                if (ierr .ne. 0) return
-
-               if (win_ini(n)%wave_stop <= 1.d7/4700. .and. win_ini(n)%wave_start >= 1.d7/5200.) then ! 2000nm
-                  ! Get variable-id for albedo data at 2000nm
-                  call check(NF90_INQ_VARID(ncid, "albedo_2000nm", varid), ierr)
-                  if (ierr .ne. 0) return
-               else
-                  if (flag%output > 2) then
-                     call writelog('CALCULATE_SYN_SPECTRUM: high-resolution surface albedo data not defined for this window', 6)
-                  end if
-
-                  call check(nf90_close(ncid), ierr)
-                  if (ierr .ne. 0) return
-                  errorflag = 1
-                  goto 101
-               end if
-
+               ! Get variable-id for albedo data at 2000nm
+               call check(NF90_INQ_VARID(ncid, "albedo_2000nm", varid), ierr)
+               if (ierr .ne. 0) return
                ! Read albedo data from netcdf-file
                call check(NF90_GET_VAR(ncid, varid, albedo_in, [sx, sy], [1, 1]), ierr)
                if (ierr .ne. 0) return
                albedo(n, 1) = albedo_in(1)
-
                ! Close netcdf-file
                call check(nf90_close(ncid), ierr)
                if (ierr .ne. 0) return
