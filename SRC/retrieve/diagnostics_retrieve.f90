@@ -798,6 +798,7 @@ contains
       do k = 1, 11
          if (x_in_flag(k) .EQ. 1) then
             call check(nf90_put_var(ncid, tcin_id(n), x_in(k), start=(/lastindex/)), stat)
+            n = n + 1
          end if
       end do
 
