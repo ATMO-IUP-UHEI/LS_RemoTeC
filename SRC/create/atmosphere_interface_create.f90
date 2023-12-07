@@ -916,10 +916,12 @@ contains
       if (allocated(temp_lev)) deallocate (temp_lev)
       if (allocated(h2o_lev)) deallocate (h2o_lev)
       if (allocated(co2_lev)) deallocate (co2_lev)
+      if (allocated(ch4_lev)) deallocate (ch4_lev)
+      if (allocated(co_lev)) deallocate (co_lev)
       if (allocated(height_lev)) deallocate (height_lev)
 
       allocate (datetime_lt(ntime))
-      allocate (press_lev(nlev), height_lev(nlev), temp_lev(nlev), h2o_lev(nlev), co2_lev(nlev))
+      allocate (press_lev(nlev), height_lev(nlev), temp_lev(nlev), h2o_lev(nlev), co2_lev(nlev), ch4_lev(nlev), co_lev(nlev))
 
       !*** UTC datetime array [year,month,day,hour,min,second]
       call check(NF90_INQ_VARID(ncid, "datetime_lt", varid), ierr)
@@ -954,15 +956,41 @@ contains
       call check(NF90_GET_VAR(ncid, varid, temp_lev, [sx, sy, 1], [1, 1, nlev]), ierr)
       if (ierr .ne. 0) return
 
-      call check(NF90_INQ_VARID(ncid, "h2o", varid), ierr)
-      if (ierr .ne. 0) return
-      call check(NF90_GET_VAR(ncid, varid, h2o_lev, [sx, sy, 1], [1, 1, nlev]), ierr)
-      if (ierr .ne. 0) return
+      if (nf90_inq_varid(ncid, "h2o", varid) /= nf90_enotvar) then
+         call check(NF90_INQ_VARID(ncid, "h2o", varid), ierr)
+         if (ierr .ne. 0) return
+         call check(NF90_GET_VAR(ncid, varid, h2o_lev, [sx, sy, 1], [1, 1, nlev]), ierr)
+         if (ierr .ne. 0) return
+      else
+         h2o_lev = 0.d0
+      end if
 
-      call check(NF90_INQ_VARID(ncid, "co2", varid), ierr)
-      if (ierr .ne. 0) return
-      call check(NF90_GET_VAR(ncid, varid, co2_lev, [sx, sy, 1], [1, 1, nlev]), ierr)
-      if (ierr .ne. 0) return
+      if (nf90_inq_varid(ncid, "co2", varid) /= nf90_enotvar) then
+         call check(NF90_INQ_VARID(ncid, "co2", varid), ierr)
+         if (ierr .ne. 0) return
+         call check(NF90_GET_VAR(ncid, varid, co2_lev, [sx, sy, 1], [1, 1, nlev]), ierr)
+         if (ierr .ne. 0) return
+      else
+         co2_lev = 0.d0
+      end if
+
+      if (nf90_inq_varid(ncid, "ch4", varid) /= nf90_enotvar) then
+         call check(NF90_INQ_VARID(ncid, "ch4", varid), ierr)
+         if (ierr .ne. 0) return
+         call check(NF90_GET_VAR(ncid, varid, ch4_lev, [sx, sy, 1], [1, 1, nlev]), ierr)
+         if (ierr .ne. 0) return
+      else
+         ch4_lev = 0.d0
+      end if
+
+      if (nf90_inq_varid(ncid, "co", varid) /= nf90_enotvar) then
+         call check(NF90_INQ_VARID(ncid, "co", varid), ierr)
+         if (ierr .ne. 0) return
+         call check(NF90_GET_VAR(ncid, varid, co_lev, [sx, sy, 1], [1, 1, nlev]), ierr)
+         if (ierr .ne. 0) return
+      else
+         co_lev = 0.d0
+      end if
 
       call check(nf90_close(ncid), ierr)
       if (ierr .ne. 0) return
@@ -980,12 +1008,12 @@ contains
       surface_elevation = height_lev(nlev)
 
       !*** Add ch4 and co
-      if (allocated(ch4_lev)) deallocate (ch4_lev)
-      if (allocated(co_lev)) deallocate (co_lev)
+      ! if (allocated(ch4_lev)) deallocate (ch4_lev)
+      ! if (allocated(co_lev)) deallocate (co_lev)
 
-      allocate (ch4_lev(nlev), co_lev(nlev))
-      ch4_lev = 0.d0
-      co_lev = 0.d0
+      ! allocate (ch4_lev(nlev), co_lev(nlev))
+      ! ch4_lev = 0.d0
+      ! co_lev = 0.d0
 
    end subroutine read_atm_icon
 
