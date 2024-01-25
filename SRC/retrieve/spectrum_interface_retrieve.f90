@@ -43,7 +43,7 @@ contains
       real(double) :: min_req_wavelength, max_req_wavelength
       integer :: min_index, max_index
       character(stringlen) :: spectrum_file, index_info, message
-      real(double), dimension(:), allocatable :: var ! TODO: delete this
+      real(double), dimension(:), allocatable :: var
 
       !-------------------------------------------------------------------
 
