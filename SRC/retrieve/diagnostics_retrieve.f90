@@ -1027,7 +1027,7 @@ contains
       ! ---------------------------------------------------------- !
 
       !*** FOR CONVERGED RETRIEVALS ERROR_ID GIVES THE NUMBER OF ITERATIONS
-      if (retrieval_output%error_ID == 0) retrieval_output%error_ID = retrieval_output%iter
+      ! if (retrieval_output%error_ID == 0) retrieval_output%error_ID = retrieval_output%iter
 
       !*** Compute chi2
       chi2 = retrieval_output%chi2(retrieval_output%iter)/(sum(retrieval_output%ny) - retrieval_output%dfs)
