@@ -518,9 +518,9 @@ contains
          call check(nf90_put_var(grpid(n), cot_id(n), retrieval_output%cot(n), start=(/lastindex/)), stat)
          call check(nf90_put_var(grpid(n), alb_id(n), retrieval_output%albedo(n), start=(/lastindex/)), stat)
          if (synthetic_input_flag .eq. 1) then
-            call check(nf90_put_var(grpid(n), otin_id(n), ot_in, start=(/lastindex/)), stat)
-            call check(nf90_put_var(grpid(n), cotin_id(n), cot_in, start=(/lastindex/)), stat)
-            call check(nf90_put_var(grpid(n), albin_id(n), alb_in, start=(/lastindex/)), stat)
+            call check(nf90_put_var(grpid(n), otin_id(n), ot_in(n), start=(/lastindex/)), stat)
+            call check(nf90_put_var(grpid(n), cotin_id(n), cot_in(n), start=(/lastindex/)), stat)
+            call check(nf90_put_var(grpid(n), albin_id(n), alb_in(n), start=(/lastindex/)), stat)
          end if
       end do
 
