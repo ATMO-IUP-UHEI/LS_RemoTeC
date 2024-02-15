@@ -1,4 +1,3 @@
-
 # Makefile for RemoTeC
 
 ############################################
@@ -12,8 +11,7 @@
 parallel = no
 # debug = yes / no
 debug = no
-#debug = no
-# FORT = IUP-gfortran, DKRZ-gfortran
+# FORT = IUP-gfortran, DKRZ-gfortran, HELIX-gfortran
 FORT = IUP-gfortran
 ############################
 
@@ -97,8 +95,38 @@ else ifeq ($(FORT),DKRZ-gfortran)
       LDFLAGS +=  -xopenmp
    endif
    FCDEP = $(FC) -cpp -M -ffree-line-length-none -fdefault-real-8 -fdefault-double-8 -J$(depdir) -I$(depdir) -I/pf/b/b309168/software/lib/install/include
-endif
 
+else ifeq ($(FORT),HELIX-gfortran)
+    make = gmake
+    fortlib = /home/hd/hd_hd/hd_oc152/software/lib_gnu/
+    nc-fortrandir = $(fortlib)/netcdf-fortran-4.6.1/build/
+    nc-cdir = $(fortlib)/netcdf-c-4.9.2/build/
+    hdfdir = $(fortlib)/hdf5-1.14.1-2/build/
+    zdir = $(fortlib)/zlib-1.2.13/build/
+
+    FC = gfortran
+
+    FFLAGS = -c -J$(moddir) -I$(moddir)
+    FFLAGS += -fimplicit-none -ffree-line-length-none -fdefault-real-8 -fdefault-double-8 -fallow-invalid-boz -fallow-argument-mismatch
+    FFLAGS += -I$(hdfdir)/include -I$(nc-fortrandir)/include -I$(nc-cdir)/include -I$(zdir)/include
+
+    LDFLAGS = -L$(nc-fortrandir)/lib -lnetcdff -L$(nc-cdir)/lib/ -lnetcdf
+    LDFLAGS += -L$(hdfdir)/lib -lhdf5_fortran -lhdf5_hl -lhdf5
+    LDFLAGS += -L$(zdir)lib -lz -ldl -lcurl
+
+    ifeq ($(debug),yes)
+        FFLAGS += -g -traceback -debug full -debug-parameters all
+        FFLAGS += -fpe0 -check bounds -check pointers -check uninit
+        FFLAGS += -check overflow -fp-stack-check -warn unused
+    else
+        FFLAGS += -O3
+    endif
+
+    ifeq ($(parallel),yes)
+        FFLAGS += -xopenmp
+        LDFLAGS += -xopenmp
+    endif
+endif
 
 # Generate dependency files using preprocessor
 # add directory of object file
