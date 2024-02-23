@@ -7,7 +7,7 @@ module wrapper_retrieve_module
    use synthetic_input_module, only: instrument_errors, read_errors, synthetic_data, get_synthetic_data, get_synthetic_data_nc
   use spectrum_interface_module, only: spectrum, read_l1b, instrument_response, get_isrf_interpolated
    use solar_model_module, only: sun_spectrum, read_sun_netcdf, read_sun_tsis1_hsrs, interpolate_solar_spectrum
-   use diagnostics_module, only: diagnostics_retrieve, diagnostics_retrieve_nc_js, diagnostics_retrieve_nc_ls
+   use diagnostics_module, only: diagnostics_retrieve
 
    implicit none
    private
@@ -298,26 +298,15 @@ contains
 
       if (atmflag .EQ. 4) then
          meteo_file = trim(fixedData%path%spectrum)//trim(varyingData%filename)
-         ! call diagnostics_retrieve_nc_js(fixedData%path%output, runid, &
-         !                            meteo_file, &
-         !                            fixedData%win_ini, &
-         !                            outputData%syn_output, outputData%retrieval_output, varyingData%meta, &
-         !                            varyingData%measurement, fixedData%grid%nlay, fixedData%flag%output)
-         call diagnostics_retrieve_nc_ls(fixedData%path%output, runid, &
+         call diagnostics_retrieve(fixedData%path%output, runid, &
                                     meteo_file, &
                                     fixedData%win_ini, &
                                     fixedData%flag%synthetic_input, outputData%syn_output, &
                                     outputData%retrieval_output, varyingData%meta, &
                                     varyingData%measurement, fixedData%grid%nlay, fixedData%flag%output)
       else
-         !    meteo_file = trim(fixedData%path%meteo)//trim(varyingData%filename)
-         meteo_file = trim(fixedData%path%spectrum)//trim(varyingData%filename)
-         call diagnostics_retrieve( &
-            fixedData%path%output, runid, fixedData%flag%output, &
-            varyingData%spectrum_file, meteo_file, &
-            fixedData%win_ini, &
-            outputData%syn_output, outputData%retrieval_output, varyingData%meta, &
-            fixedData%grid%nlay, size(varyingData%measurement), fixedData%flag%output)
+         ! TODO: remove this after atm flag is gone.
+         print*, "ERROR: ATM FLAG OTHER THAN 4 IS NO LONGER ALLOWED. ATM FLAG WILL BE DEPRECATED IN THE FUTURE"
       end if
 
    end subroutine write_output
