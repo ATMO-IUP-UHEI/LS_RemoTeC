@@ -134,8 +134,13 @@ contains
             allocate(wavelength(nwave))
             call netcdf_get_vector_var(grpid(band), "wavelength", wavelength, start=(/1/))
 
+<<<<<<< HEAD
             ! Check if current band surrounds current fit window. If not, go to the next band
             if (wavelength(1) > win_ini(win)%wave_start .or. win_ini(win)%wave_stop > wavelength(nwave)) then
+=======
+            ! Check if current band surrounds current fit window. If not, go to the next band.
+            if (wavelength(1) > win_ini(win)%wave_start .or. wavelength(nwave) < win_ini(win)%wave_stop) then
+>>>>>>> when checking if current data band surrounds fit window, checking for fwhm multiple offset is not necessary
                if (band == nband) then
                   print*, "ERROR IN READ_L1B: No bands surround fit window."
                end if
