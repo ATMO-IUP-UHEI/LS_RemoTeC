@@ -40,7 +40,6 @@ contains
       integer :: sx, sy, start1d(1), start2d(2), start3d(3)
       integer :: time_id, sza_id, vza_id, saa_id, vaa_id, observer_altitude_id, lon_id, lat_id! , surface_elevation_id
       real(double), dimension(:), allocatable :: wavelength
-      real(double) :: min_req_wavelength, max_req_wavelength
       integer :: min_index, max_index
       character(stringlen) :: spectrum_file, index_info, message
       real(double), dimension(:), allocatable :: var
@@ -136,10 +135,7 @@ contains
             call netcdf_get_vector_var(grpid(band), "wavelength", wavelength, start=(/1/))
 
             ! Check if current band surrounds current fit window. If not, go to the next band
-            ! This check needs to take into account the wave boundary offset in multiples of the fwhm
-            min_req_wavelength = win_ini(win)%wave_start - win_ini(win)%fwhm * win_ini(win)%wvbd
-            max_req_wavelength = win_ini(win)%wave_stop + win_ini(win)%fwhm * win_ini(win)%wvbd
-            if (.not. (wavelength(1) <= min_req_wavelength .and. max_req_wavelength <= wavelength(nwave))) then
+            if (wavelength(1) > win_ini(win)%wave_start .or. win_ini(win)%wave_stop > wavelength(nwave)) then
                if (band == nband) then
                   print*, "ERROR IN READ_L1B: No bands surround fit window."
                end if
@@ -191,8 +187,8 @@ contains
             end if
 
             ! Cut down spectrum to necessary wavelength range
-            min_index = maxloc(wavelength, dim=1, mask=wavelength<=min_req_wavelength)
-            max_index = minloc(wavelength, dim=1, mask=wavelength>=max_req_wavelength)
+            min_index = maxloc(wavelength, dim=1, mask=wavelength<=win_ini(win)%wave_start)
+            max_index = minloc(wavelength, dim=1, mask=wavelength>=win_ini(win)%wave_stop)
             nwave = max_index - min_index + 1
 
             measurement(win)%nwave = nwave
