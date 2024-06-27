@@ -312,8 +312,6 @@ contains
       character*2 :: ch
       character(stringlen) :: message
 
-      print*, "TODO LS: Start of get_isrf_interpolated"
-
       ! Initialize instrument_response
       ! assumption: nrow is the same for all windows.
       ! if this is ever changed, change this allocation and all do loops in the below subroutines
@@ -328,10 +326,7 @@ contains
       call get_ils_offsets(response, win_ini, nwin, nrow)
 
       ! response of the ils
-      print*, "TODO LS: Currently, ILS file is hardcoded. Change it in a way where the file is given directly and the correct band is imported automatically"
-      call get_ils_response(response, win_ini, flag, "SYNTH_SPECTRA/isrf_01.nc", nwin, nrow)
-
-      print*, "TODO LS: End of what I wanna do in get_isrf_interpolated"
+      call get_ils_response(response, win_ini, flag, filename, nwin, nrow)
 
       ! TODO LS: give this a debug flag
       ! also, this currently only supports one window
@@ -565,49 +560,93 @@ contains
       character(len=*), intent(in) :: filename
       type(instrument_response), intent(in) :: response
       type(instrument_response), intent(out) :: response_from_file
+      !*** local variables
       real(double), dimension(:), allocatable :: wavelength, ils_dwave
       real(double), dimension(:, :), allocatable :: resp
-      !*** local variables
-      integer :: nwave, wave, nils
-      integer :: ncid, varid
+      integer :: nwave, wave, nils, band, nband, current_band
+      integer :: ncid, grpid(3), varid
       integer :: ierr
+      integer :: ierr_band_found ! number of data bands in file that surrounded fit window (debug)
 
       call check(nf90_open(trim(filename), nf90_nowrite, ncid), ierr)
 
-      print*, "check correct group using response%wavelength"
-      print*, "check if ils_dwave of file surrounds response%ils_dwave"
+      ! get correct band from file. It's wavelength range has to surround
+      ! response%wavelength. The netcdf group containing this band needs to be used
+      call check(nf90_inq_grps(ncid, nband, grpid), ierr)
+      if (ierr .ne. 0) return
 
-      ! get dimensions nwave and nils
-      call check(nf90_inq_dimid(ncid, "wl_i", varid), ierr)
-      call check(nf90_inquire_dimension(ncid, varid, len=nwave), ierr)
-      response_from_file%nwave = nwave
+      ierr_band_found = 0
 
-      call check(nf90_inq_dimid(ncid, "dwl", varid), ierr)
-      call check(nf90_inquire_dimension(ncid, varid, len=nils), ierr)
-      response_from_file%nils = nils
+      do band = 1, nband
+         ! check if this band contains a wavelength grid that surrounds the fit window
+         call check(nf90_inq_dimid(grpid(band), "channel", varid), ierr)
+         call check(nf90_inquire_dimension(grpid(band), varid, len=nwave), ierr)
+
+         ! Get wavelengths of the current band and write them into dummy variable wavelength
+         if (allocated(wavelength)) deallocate(wavelength)
+         allocate(wavelength(nwave))
+         call check(nf90_inq_varid(grpid(band), "wavelength_center", varid), ierr)
+         call check(nf90_get_var(grpid(band), varid, wavelength), ierr)
+
+         ! check if current band surrounds current fit window. If not, go to the next band
+         if (wavelength(1) > response%wavelength(1) .or. wavelength(nwave) < response%wavelength(response%nwave)) then
+            if (band == nband) then
+               if (ierr_band_found == 0) then
+                  print*, "ERROR IN READ_ILS_FILE: No bands surrounded fit window."
+               else
+                  print*, "ERROR IN READ_ILS_FILE: ", ierr_band_found, " band(s) surrounded fit window but none had sufficiently large ils_dwave grid."
+               end if
+            end if
+            cycle
+         else
+            ierr_band_found = ierr_band_found + 1
+         end if
+         
+
+         ! check if this band contains a wavelength offset grid that is sufficiently large
+         call check(nf90_inq_dimid(grpid(band), "d_channel", varid), ierr)
+         call check(nf90_inquire_dimension(grpid(band), varid, len=nils), ierr)
+
+         ! Get wavelength offsets of the current band and write them into dummy variable ils_dwave
+         if (allocated(ils_dwave)) deallocate(ils_dwave)
+         allocate(ils_dwave(nils))
+         call check(nf90_inq_varid(grpid(band), "wavelength_offset", varid), ierr)
+         call check(nf90_get_var(grpid(band), varid, ils_dwave), ierr)
+
+         ! check if current band has sufficiently large ils_dwave. If not, go to the next band
+         if (ils_dwave(1) > maxval(response%ils_dwave(:, 1)) .or. ils_dwave(nils) < minval(response%ils_dwave(:, response%nils))) then
+            cycle
+         end if
+
+         current_band = band
+         exit
+      end do
+
+      ! correct band found to be current_band
+      ! we have nwave, nils, wavelength, and ils_dwave, write those into response_from_file
+      ! also get the correct response
 
       ! wavelengths on which ils is defined
-      allocate(wavelength(nwave))
+      response_from_file%nwave = nwave
       allocate(response_from_file%wavelength(nwave))
-      call check(nf90_inq_varid(ncid, "Measured_wavelengths", varid), ierr)
-      call check(nf90_get_var(ncid, varid, wavelength), ierr)
       response_from_file%wavelength = wavelength
 
       ! wavelength offsets for which ils is defined
-      allocate(ils_dwave(nils))
       allocate(response_from_file%ils_dwave(nwave, nils))
-      call check(nf90_inq_varid(ncid, "Wavelength_differences", varid), ierr)
-      call check(nf90_get_var(ncid, varid, ils_dwave), ierr)
+      response_from_file%nils = nils
       do wave = 1, nwave
          response_from_file%ils_dwave(wave, :) = ils_dwave
-      end do
+      end do ! loop over wave
 
       ! response of ils
+      ! allocate(resp(nwave, nils))
       allocate(resp(nils, nwave))
+      call check(nf90_inq_varid(grpid(current_band), "response", varid), ierr)
+      call check(nf90_get_var(grpid(current_band), varid, resp), ierr)
+
       allocate(response_from_file%resp_store(nwave, nils))
-      call check(nf90_inq_varid(ncid, "Response", varid), ierr)
-      call check(nf90_get_var(ncid, varid, resp), ierr)
       do wave = 1, nwave
+         ! response_from_file%resp_store(wave, :) = resp(wave, :)
          response_from_file%resp_store(wave, :) = resp(:, wave)
       end do ! loop over wave
 
