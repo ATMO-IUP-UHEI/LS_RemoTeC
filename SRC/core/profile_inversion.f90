@@ -608,13 +608,13 @@ contains
           if (ierr .ne. 0) return
 
           !*** CONTROL OUTPUT
-          if(flag%output >=3 )then
+          if(flag%output >= 3)then
              write(ch,'(i2.2)')n
-             open(newunit(io),FILE='./CONTRL_OUT/spectrum_'//ch//'.dat')
+             open(newunit(io),FILE='./CONTRL_OUT/spectrum_lores_'//ch//'.dat')
              write(io,'(A)')'# Wavelength / nm'
-             write(io,'(A)')'# Reflectance measured'
-             write(io,'(A)')'# Reflectance noise'
-             write(io,'(A)')'# Reflectance modelled'
+             write(io,'(A)')'# Radiance measured'
+             write(io,'(A)')'# Radiance noise'
+             write(io,'(A)')'# Radiance modelled'
              write(io,'(A)')'# Measured - modelled '
              write(io,'(A)')'# Solar irradiance'
              do k = 1, win(n)%nwave_lo
@@ -627,8 +627,21 @@ contains
                      win(n)%sun_spectrum_ref_lo(k)
              enddo
              close(io)
-
           endif
+
+          if(flag%output >= 3)then
+             write(ch,'(i2.2)')n
+             open(newunit(io),FILE='./CONTRL_OUT/spectrum_hires_'//ch//'.dat')
+             write(io,'(A)')'# Wavelength / nm'
+             write(io,'(A)')'# Radiance modelled'
+             do k = 1, win_ini(n)%nwave_hi
+                write(io,'(100(1pE16.8E3,x))') &
+                     win_ini(n)%wavelength_hi(k),&
+                     reflectance_hi(k, :)*win(n)%sun_spectrum_ref_hi(k)
+             enddo
+             close(io)
+          endif
+
        enddo ! close loop over windows
 
        !*** Check if the max OT condition has anywhere been reached in the previous rad_trans calls (rad_trans_intf).
