@@ -500,6 +500,9 @@ contains
             nils_tmp = nils_from_file
 
             ! interpolate onto lores wavelength grid
+            if(allocated(response_tmp%wavelength)) deallocate(response_tmp%wavelength)
+            if(allocated(response_tmp%ils_dwave)) deallocate(response_tmp%ils_dwave)
+            if(allocated(response_tmp%resp_store)) deallocate(response_tmp%resp_store)
             allocate(response_tmp%wavelength(nwave_tmp))
             allocate(response_tmp%ils_dwave(nwave_tmp, nils_tmp))
             allocate(response_tmp%resp_store(nwave_tmp, nils_tmp))
