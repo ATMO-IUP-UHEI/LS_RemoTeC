@@ -292,8 +292,8 @@ contains
 !! Thus, we have to interpolate twice when reading the S5P-format file.
 !! For testing purposes, one can also choose to calculate a Gaussian ISRF inline or read a custom ISRF file
 !------------------------------------------------------------------------------
-   subroutine get_isrf_interpolated(flag, filename, fixed_nrow, win_ini, measurement, response, ierr)
-      integer, intent(in) :: flag
+   subroutine get_isrf_interpolated(flag_ilscalc, flag_output, filename, fixed_nrow, win_ini, measurement, response, ierr)
+      integer, intent(in) :: flag_ilscalc, flag_output
       character(len=*) :: filename
       integer, dimension(:), intent(in) :: fixed_nrow
       type(window_ini), dimension(:), intent(in) :: win_ini
@@ -309,6 +309,7 @@ contains
       ! type(instrument_response), dimension(:, :), allocatable :: response_in
       integer :: nrow
       real(double), dimension(:), allocatable :: ils_dwave
+      integer :: io
       character*2 :: ch
       character(stringlen) :: message
 
@@ -326,24 +327,26 @@ contains
       call get_ils_offsets(response, win_ini, nwin, nrow)
 
       ! response of the ils
-      call get_ils_response(response, win_ini, flag, filename, nwin, nrow)
+      call get_ils_response(response, win_ini, flag_ilscalc, filename, nwin, nrow)
 
-      ! TODO LS: give this a debug flag
-      ! also, this currently only supports one window
-      do win = 1, size(win_ini)
-         open(50, file='CONTRL_OUT/used_isrf_01.dat')
-         write(50, *) "left wavelength / nm"
-         write(50, *) response(win, 1)%wavelength(1)
-         write(50, *) "right wavelength / nm"
-         write(50, *) response(win, 1)%wavelength(response(1, 1)%nwave)
-         write(50, *) "nwave"
-         write(50, *) response(win, 1)%nwave
-         write(50, *) "ils dwave / nm, left ils, right ils"
-         do ils = 1, response(win, 1)%nils
-            write(50, *) response(win, 1)%ils_dwave(1, ils), response(win, 1)%resp_store(1, ils), response(win, 1)%resp_store(response(win, 1)%nwave, ils)
+      ! write used ils for each window into a debug output file
+      if (flag_output >= 3) then
+         do win = 1, size(win_ini)
+            write (ch, "(i2.2)") win
+            open(newunit(io), file="CONTRL_OUT/used_ils_"//ch//".dat")
+            write(io, *) "left wavelength / nm"
+            write(io, *) response(win, 1)%wavelength(1)
+            write(io, *) "right wavelength / nm"
+            write(io, *) response(win, 1)%wavelength(response(1, 1)%nwave)
+            write(io, *) "nwave"
+            write(io, *) response(win, 1)%nwave
+            write(io, *) "ils dwave / nm, left ils, right ils"
+            do ils = 1, response(win, 1)%nils
+               write(io, *) response(win, 1)%ils_dwave(1, ils), response(win, 1)%resp_store(1, ils), response(win, 1)%resp_store(response(win, 1)%nwave, ils)
+            enddo
+            close(io)
          enddo
-         close(50)
-      enddo
+      end if
 
       print*, "TODO LS: Implement ierr in the subroutines"
       if (ierr .ne. 0) goto 999
@@ -409,18 +412,18 @@ contains
    end subroutine get_ils_offsets
 
 
-   subroutine get_ils_response(response, win_ini, flag, filename, nwin, nrow)
-      integer, intent(in) :: flag, nwin, nrow
+   subroutine get_ils_response(response, win_ini, flag_ilscalc, filename, nwin, nrow)
+      integer, intent(in) :: flag_ilscalc, nwin, nrow
       type(instrument_response), dimension(:, :), allocatable, intent(inout) :: response
       type(window_ini), dimension(:), intent(in) :: win_ini
       character(len=*) :: filename
 
-      if (flag == 1) then ! Calculate Gaussian ILS
+      if (flag_ilscalc == 1) then ! Calculate Gaussian ILS
          call get_ils_response_internal(response, win_ini, nwin, nrow)
-      elseif (flag == 2) then ! Read ILS from file
+      elseif (flag_ilscalc == 2) then ! Read ILS from file
          call get_ils_response_from_file(response, filename, nwin, nrow)
       else
-         print*, "invalid flag"
+         print*, "invalid flag ilscalc"
       end if
    end subroutine get_ils_response
 

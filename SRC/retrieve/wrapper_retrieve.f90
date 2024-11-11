@@ -149,6 +149,7 @@ contains
       nrow = 1
       call get_isrf_interpolated( &
          fixed%flag%ilscalc, &
+         fixed%flag%output, &
          trim(fixed%path%ils), &
          nrow, &
          fixed%win_ini, &
