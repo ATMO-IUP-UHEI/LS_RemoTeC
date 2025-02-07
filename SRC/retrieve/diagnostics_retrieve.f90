@@ -239,8 +239,21 @@ contains
       allocate (alb_in(nwin), &
                 ot_in(nwin), &
                 cot_in(nwin))
+
       call get_scenario_info_nc_js(meteo_file, alb_in, ot_in, cot_in)
 
+      if (allocated(grpid)) deallocate (grpid)
+      if (allocated(wave_id)) deallocate (wave_id)
+      if (allocated(ot_id)) deallocate (ot_id)
+      if (allocated(cot_id)) deallocate (cot_id)
+      if (allocated(alb_id)) deallocate (alb_id)
+      if (allocated(otin_id)) deallocate (otin_id)
+      if (allocated(cotin_id)) deallocate (cotin_id)
+      if (allocated(albin_id)) deallocate (albin_id)
+      if (allocated(tc_id)) deallocate (tc_id)
+      if (allocated(dfst_id)) deallocate (dfst_id)
+      if (allocated(tcerr_id)) deallocate (tcerr_id)
+      if (allocated(tcin_id)) deallocate (tcin_id)
       allocate (grpid(nwin), &
                 wave_id(nwin), &
                 ot_id(nwin), &
