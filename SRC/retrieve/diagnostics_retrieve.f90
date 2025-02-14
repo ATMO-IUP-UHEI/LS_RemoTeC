@@ -253,7 +253,6 @@ contains
       if (allocated(tc_id)) deallocate (tc_id)
       if (allocated(dfst_id)) deallocate (dfst_id)
       if (allocated(tcerr_id)) deallocate (tcerr_id)
-      if (allocated(tcin_id)) deallocate (tcin_id)
       allocate (grpid(nwin), &
                 wave_id(nwin), &
                 ot_id(nwin), &
@@ -264,8 +263,12 @@ contains
                 albin_id(nwin), &
                 tc_id(ntype_target), &
                 dfst_id(ntype_target), &
-                tcerr_id(ntype_target), &
-                tcin_id(ntype_target_in))
+                tcerr_id(ntype_target))
+
+      if (synthetic_input_flag .eq. 1) then
+         if (allocated(tcin_id)) deallocate (tcin_id)
+         allocate(tcin_id(ntype_target_in))
+      end if
 
       inquire (FILE=trim(ncfile), EXIST=exst)
       if (.not. exst) then
