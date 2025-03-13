@@ -145,7 +145,7 @@ program main
    call interpolate_solar_spectrum(sun_input, win_ini, ierr)
 
    !*** Set up measurement wavelength grid, ILS and convoluted irradiance
-   if (flag%ilscalc .le. 0) then
+   if (flag%ilscalc .eq. 0) then  ! from S5P file
       call synthetic_interface_init(atm(1), path%ils)
    end if
    call synthetic_interface(flag%ilscalc, flag%inv, path%ils, win_ini, win)
