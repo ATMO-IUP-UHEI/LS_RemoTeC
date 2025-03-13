@@ -393,7 +393,7 @@ contains
                nils = nils + 1
             end if
             response(row, win)%nils = nils
-            
+            !
             ! get offsets ils_dwave for each wavelength wave on which ils is defined
             ! ils_dwave is the same for all wavelengths, therefore no loop over wave
             if(allocated(ils_dwave)) deallocate(ils_dwave)
@@ -537,26 +537,6 @@ contains
                   ierr &
                )
             end do ! loop over wave
-
-            ! debug output for different interpolation steps
-
-            ! do ils = 1, nils_from_file
-            !    print*, response_from_file%ils_dwave(1, ils), response_from_file%resp_store(1, ils), response_from_file%resp_store(nwave_from_file, ils)
-            ! end do ! loop over ils
-            ! print*, "length of wavelength = ", response_from_file%nwave
-            ! print*, "length of ils_dwave = ", response_from_file%nils
-
-            ! do ils = 1, nils_tmp
-            !    print*, response_tmp%ils_dwave(1, ils), response_tmp%resp_store(1, ils), response_tmp%resp_store(nwave_tmp, ils)
-            ! end do
-            ! print*, "length of wavelength = ", response_tmp%nwave
-            ! print*, "length of ils_dwave = ", response_tmp%nils
-
-            ! do ils = 1, nils
-            !    print*, response(1, 1)%ils_dwave(1, ils), response(1, 1)%resp_store(1, ils), response(1, 1)%resp_store(nwave, ils)
-            ! end do ! loop over ils
-            ! print*, "length of wavelength = ", response(1, 1)%nwave
-            ! print*, "length of ils_dwave = ", response(1, 1)%nils
          end do ! loop over row
       end do ! loop over win
    end subroutine get_ils_response_from_file
@@ -607,7 +587,6 @@ contains
          else
             ierr_band_found = ierr_band_found + 1
          end if
-         
 
          ! check if this band contains a wavelength offset grid that is sufficiently large
          call check(nf90_inq_dimid(grpid(band), "d_channel", varid), ierr)
@@ -645,14 +624,12 @@ contains
       end do ! loop over wave
 
       ! response of ils
-      ! allocate(resp(nwave, nils))
       allocate(resp(nils, nwave))
       call check(nf90_inq_varid(grpid(current_band), "response", varid), ierr)
       call check(nf90_get_var(grpid(current_band), varid, resp), ierr)
 
       allocate(response_from_file%resp_store(nwave, nils))
       do wave = 1, nwave
-         ! response_from_file%resp_store(wave, :) = resp(wave, :)
          response_from_file%resp_store(wave, :) = resp(:, wave)
       end do ! loop over wave
 
