@@ -13,7 +13,7 @@ module spectrum_interface_module
 
 !*** Procedures
    public :: read_l1b, get_isrf_interpolated, instrument_interface
-   private :: spectral_response_create_gauss, read_isrf_retrieve, calculate_isrf
+   private :: get_ils_wavelengths, get_ils_offsets, get_ils_response, get_ils_response_internal, ils_gauss, get_ils_response_from_file, read_ils_file
 
 contains
 
@@ -134,8 +134,8 @@ contains
             allocate(wavelength(nwave))
             call netcdf_get_vector_var(grpid(band), "wavelength", wavelength, start=(/1/))
 
-            ! Check if current band surrounds current fit window. If not, go to the next band
-            if (wavelength(1) > win_ini(win)%wave_start .or. win_ini(win)%wave_stop > wavelength(nwave)) then
+            ! Check if current band surrounds current fit window. If not, go to the next band.
+            if (wavelength(1) > win_ini(win)%wave_start .or. wavelength(nwave) < win_ini(win)%wave_stop) then
                if (band == nband) then
                   print*, "ERROR IN READ_L1B: No bands surround fit window."
                end if
@@ -292,236 +292,351 @@ contains
 !! Thus, we have to interpolate twice when reading the S5P-format file.
 !! For testing purposes, one can also choose to calculate a Gaussian ISRF inline or read a custom ISRF file
 !------------------------------------------------------------------------------
-   subroutine get_isrf_interpolated(flag, filename, fixed_nrow, win_ini, measurement, response_out, ierr)
-      integer, intent(in) :: flag
+   subroutine get_isrf_interpolated(flag_ilscalc, flag_output, filename, fixed_nrow, win_ini, measurement, response, ierr)
+      integer, intent(in) :: flag_ilscalc, flag_output
       character(len=*) :: filename
       integer, dimension(:), intent(in) :: fixed_nrow
       type(window_ini), dimension(:), intent(in) :: win_ini
       type(spectrum), dimension(:), intent(in) :: measurement
-      type(instrument_response), dimension(:, :), intent(inout) :: response_out
+      !type(instrument_response), dimension(:, :), intent(inout) :: response_out
+      type(instrument_response), dimension(:, :), allocatable, intent(out) :: response
       integer, intent(out) :: ierr
       !*** local
-      integer :: i, j, k, l, n, nils, nwave, nband
-      type(instrument_response) :: response
-      type(instrument_response), dimension(:), allocatable :: response_tmp
-      type(instrument_response), dimension(:, :), allocatable :: response_in
+      integer :: i, j, k, l, n, nils, nwave, nwin, nband
+      integer :: row, win, ils, wave
+      ! type(instrument_response) :: response
+      ! type(instrument_response), dimension(:), allocatable :: response_tmp
+      ! type(instrument_response), dimension(:, :), allocatable :: response_in
+      integer :: nrow
+      real(double), dimension(:), allocatable :: ils_dwave
+      integer :: io
       character*2 :: ch
       character(stringlen) :: message
 
-      nband = size(measurement)
-      if (flag == 1) then !Calculate Gaussian ISRF
+      ! Initialize instrument_response
+      ! assumption: nrow is the same for all windows.
+      ! if this is ever changed, change this allocation and all do loops in the below subroutines
+      nwin = size(win_ini)
+      nrow = fixed_nrow(1)
+      allocate(response(nrow, nwin))
 
-         call calculate_isrf(win_ini, measurement, response_tmp)
-         do n = 1, nband
-            do i = 1, fixed_nrow(n)
-               response_out(i, n) = response_tmp(n)
-            end do
-         end do
+      ! wavelengths on which ils are defined
+      call get_ils_wavelengths(response, measurement, nwin, nrow)
 
-      elseif (flag == 2) then !Read ISRF from custom NetCDF file
-         do n = 1, nband
-            write (ch, '(i2.2)') n
-            call read_isrf_retrieve(trim(filename)//'isrf_'//ch//'.nc', response, ierr)
-            if (ierr .ne. 0) goto 999
+      ! wavelength offsets for which the ils is defined
+      call get_ils_offsets(response, win_ini, nwin, nrow)
 
-            do l = 1, size(win_ini)
-               !*** Check if wavelength is in fit window
-               if (win_ini(l)%wave_start .ge. minval(measurement(n)%wavelength) .and. &
-                   win_ini(l)%wave_stop .le. maxval(measurement(n)%wavelength)) then
-                  !*** Interpolate ISRF on user-defined wavelength grid
-                  nils = 2*int(int(win_ini(l)%fwhm*win_ini(l)%wvbd/win_ini(l)%reso)/2) + 1
-                  do i = 1, fixed_nrow(n)
-                     response_out(i, n)%nils = nils
-                     response_out(i, n)%nwave = response%nwave
-                     allocate (response_out(i, n)%ils_dwave(response%nwave, nils), &
-                               response_out(i, n)%resp_store(response%nwave, nils), &
-                               stat=ierr)
-                     if (ierr .ne. 0) goto 999
-                     forall (j=1:nils) &
-                        response_out(i, n)%ils_dwave(:, j) = -win_ini(l)%reso*int(nils/2) + dble(j - 1)*win_ini(l)%reso
+      ! response of the ils
+      call get_ils_response(response, win_ini, flag_ilscalc, filename, nwin, nrow)
 
-                     do k = 1, response%nwave
-                        call spline_interpol(response%ils_dwave(k, :), response%resp_store(k, :), response%nils, &
-                                             response_out(i, n)%ils_dwave(k, :), response_out(i, n)%resp_store(k, :), nils, ierr)
-!!$                 call linterp(response%ils_dwave(k,:), response%resp_store(k,:),response%nils,&
-!!$                      response_out(i,n)%ils_dwave(k,:), response_out(i,n)%resp_store(k,:), nils, ierr)
-                        if (ierr .ne. 0) goto 999
-                     end do
-                  end do !loop over i
-               end if
-            end do !loop over l
-         end do !loop over n
-
-      else
-
-         write (message, '(a)') 'get_isrf_interpolated: Option not implemented.'
-         call writelog(message, 6)
-
+      ! write used ils for each window into a debug output file
+      if (flag_output >= 3) then
+         do win = 1, size(win_ini)
+            write (ch, "(i2.2)") win
+            open(newunit(io), file="CONTRL_OUT/used_ils_"//ch//".dat")
+            write(io, *) "left wavelength / nm"
+            write(io, *) response(win, 1)%wavelength(1)
+            write(io, *) "right wavelength / nm"
+            write(io, *) response(win, 1)%wavelength(response(1, 1)%nwave)
+            write(io, *) "nwave"
+            write(io, *) response(win, 1)%nwave
+            write(io, *) "ils dwave / nm, left ils, right ils"
+            do ils = 1, response(win, 1)%nils
+               write(io, *) response(win, 1)%ils_dwave(1, ils), response(win, 1)%resp_store(1, ils), response(win, 1)%resp_store(response(win, 1)%nwave, ils)
+            enddo
+            close(io)
+         enddo
       end if
 
-!!$     do n = 1, nband
-!!$        write(ch,'(i2.2)') n
-!!$        open(50, file='isrf_'//ch//'.dat')
-!!$        do i = 1, response_out(1,n)%nils
-!!$           write(50,*) response_out(1,n)%ils_dwave(1,i), response_out(1,n)%resp_store(1,i)
-!!$        enddo
-!!$        close(50)
-!!$     enddo
+      print*, "TODO LS: Implement ierr in the subroutines"
+      if (ierr .ne. 0) goto 999
 
       ierr = 0
       return
+
 999   call writelog('GET_ISRF_INTERPOLATED: Fatal error during preparation of ISRF', 8)
 
    end subroutine get_isrf_interpolated
 
-!------------------------------------------------------------------------------
-!> @details We compute a Gaussian instrument response function and store it
-!! in the data type "response" to be passed to the retrieval algorithm
-!! This routine is not used in the prototype, where we shall
-!! receive the instrument response in a tbd form.
-!------------------------------------------------------------------------------
-   subroutine calculate_isrf(win_ini, measurement, response)
 
-      type(window_ini), dimension(:), intent(in) :: win_ini
+   subroutine get_ils_wavelengths(response, measurement, nwin, nrow)
+      integer, intent(in) :: nwin
+      integer, intent(in) :: nrow
       type(spectrum), dimension(:), intent(in) :: measurement
-      type(instrument_response), dimension(:), allocatable, intent(out) :: response
-      !*** Local variables
-      integer :: i, k, l, n, nils, nband
-      real(double) :: fwhm
-      real(double), dimension(:), allocatable :: ilswave                 ! ILS wavelength grid
-      real(double), dimension(:), allocatable :: ilsfunction         ! ILS
-      !---------------------------------------------------------
+      type(instrument_response), dimension(:, :), allocatable, intent(inout) :: response
+      !*** local variables
+      integer :: win, row
 
-      allocate (response(size(measurement)))
-      nband = size(response)
-      do n = 1, nband
-         !*** Set low-resolution wavelength grid
-         response(n)%nwave = measurement(n)%nwave
-         allocate (response(n)%wavelength(response(n)%nwave))
-         do k = 1, response(n)%nwave
-            response(n)%wavelength(k) = measurement(n)%wavelength(k)
-         end do
-      end do
+      do win = 1, nwin
+         do row = 1, nrow
+            response(row, win)%nwave = measurement(win)%nwave
+            response(row, win)%wavelength = measurement(win)%wavelength
+         end do ! loop over row
+      end do ! loop over win
+   end subroutine get_ils_wavelengths
 
-      do n = 1, nband
-         do l = 1, size(win_ini)
-            if (win_ini(l)%wave_start .le. maxval(measurement(n)%wavelength) .and. &
-                win_ini(l)%wave_stop .ge. minval(measurement(n)%wavelength)) then
-               fwhm = win_ini(l)%fwhm
-               nils = int(fwhm*win_ini(l)%wvbd/win_ini(l)%reso)
-               if (modulo(nils, 2) == 0) nils = nils + 1   ! make sure number of Gaussian ILS points are uneven
-               allocate (ilswave(nils), &
-                         ilsfunction(nils))
-               call spectral_response_create_gauss( &
-                  fwhm, win_ini(l)%reso, nils, ilswave, ilsfunction)
 
-               !*** Store in an array(nils) for each measured wavelength as a function of
-               !*** wavelength difference
-               response(n)%nils = nils
-               if (allocated(response(n)%resp_store)) deallocate (response(n)%resp_store)
-               if (allocated(response(n)%ils_dwave)) deallocate (response(n)%ils_dwave)
-               allocate (response(n)%resp_store(response(n)%nwave, nils))
-               allocate (response(n)%ils_dwave(response(n)%nwave, nils))
-               do k = 1, response(n)%nwave
-                  do i = 1, nils
-                     response(n)%resp_store(k, i) = ilsfunction(i)
-                     response(n)%ils_dwave(k, i) = ilswave(i)
-                  end do
-               end do
-               deallocate (ilswave, ilsfunction)
+   subroutine get_ils_offsets(response, win_ini, nwin, nrow)
+      integer, intent(in) :: nwin
+      integer, intent(in) :: nrow
+      type(window_ini), dimension(:), intent(in) :: win_ini
+      type(instrument_response), dimension(:, :), allocatable, intent(inout) :: response
+      !*** local variables
+      integer :: win, row, nils, ils, nwave, wave
+      real(double), dimension(:), allocatable :: ils_dwave
+
+      do win = 1, nwin
+         do row = 1, nrow
+            nils = win_ini(win)%fwhm * win_ini(win)%wvbd / win_ini(win)%reso
+            ! make sure nils is odd to have a single center point
+            if (modulo(nils, 2) == 0) then
+               nils = nils + 1
             end if
-         end do !loop over l
-      end do !loop n
+            response(row, win)%nils = nils
+            !
+            ! get offsets ils_dwave for each wavelength wave on which ils is defined
+            ! ils_dwave is the same for all wavelengths, therefore no loop over wave
+            if(allocated(ils_dwave)) deallocate(ils_dwave)
+            allocate(ils_dwave(nils))
+            do ils = 1, nils
+               ! convert index offset into wavelength offset
+               ils_dwave(ils) = (ils - (int(nils/2) + 1)) * win_ini(win)%reso
+            end do ! loop over ils
+            nwave = response(row, win)%nwave
+            allocate(response(row, win)%ils_dwave(nwave, nils))
+            do wave = 1, nwave
+               response(row, win)%ils_dwave(wave, :) = ils_dwave
+            end do ! loop over wave
+         end do ! loop over row
+      end do ! loop over win
+   end subroutine get_ils_offsets
 
-   end subroutine calculate_isrf
 
-!------------------------------------------------------------------------------
-!> @details Compute Gaussian instrument line shape (gauss) as a function of
-!! wavelength differences (wgauss)
-!------------------------------------------------------------------------------
-   subroutine spectral_response_create_gauss( &
-      fwhm, dlambda, ngauss, wgauss, gauss)
-      integer, intent(IN) :: ngauss
-      real(double), intent(IN) :: fwhm, dlambda
-      real(double), intent(OUT), dimension(ngauss) :: wgauss, gauss
-!*** local variables
-      integer :: k
-      real(double) :: gaussint, center, b
-      real(double), parameter :: sqrtln2 = 0.8325546
+   subroutine get_ils_response(response, win_ini, flag_ilscalc, filename, nwin, nrow)
+      integer, intent(in) :: flag_ilscalc, nwin, nrow
+      type(instrument_response), dimension(:, :), allocatable, intent(inout) :: response
+      type(window_ini), dimension(:), intent(in) :: win_ini
+      character(len=*) :: filename
 
-      b = fwhm/sqrtln2/2.
-      gaussint = 0.
-      gauss = 0.
-      center = (int(ngauss/2) + 1)*dlambda
-      do k = 1, ngauss
-         wgauss(k) = k*dlambda - center
-         gauss(k) = DEXP(-(wgauss(k)/b)*(wgauss(k)/b))
-!         gaussint = gaussint + gauss(k)
-         gaussint = gaussint + gauss(k)*dlambda  !HH: normalization
-      end do
-      gauss = gauss/gaussint
+      if (flag_ilscalc == 1) then ! Calculate Gaussian ILS
+         call get_ils_response_internal(response, win_ini, nwin, nrow)
+      elseif (flag_ilscalc == 2) then ! Read ILS from file
+         call get_ils_response_from_file(response, filename, nwin, nrow)
+      else
+         print*, "invalid flag ilscalc"
+      end if
+   end subroutine get_ils_response
 
-   end subroutine spectral_response_create_gauss
 
-!------------------------------------------------------------------------------
-   subroutine read_isrf_retrieve(filename, response, ierr)
+   subroutine get_ils_response_internal(response, win_ini, nwin, nrow)
+      type(instrument_response), dimension(:, :), allocatable, intent(inout) :: response
+      type(window_ini), dimension(:), intent(in) :: win_ini
+      integer, intent(in) :: nwin, nrow
+      !*** local variables
+      integer :: win, row, wave
+      real(double), dimension(:), allocatable :: resp
+
+      do win = 1, nwin
+         do row = 1, nrow
+            ! assume that ils_dwave grid is the same for all wavelengths, therefore
+            ! no loop over wave. Use wave index 1 for all wavelengths.
+            if(allocated(resp)) deallocate(resp)
+            allocate(resp(response(win, row)%nils))
+            call ils_gauss(response(win, row)%ils_dwave(1, :), win_ini(win)%reso, win_ini(win)%fwhm, resp)
+            allocate(response(win, row)%resp_store(response(win, row)%nwave, response(win, row)%nils))
+            do wave = 1, response(win, row)%nwave
+               response(win, row)%resp_store(wave, :) = resp
+            end do ! loop over wave
+         end do ! loop over row
+      end do ! loop over win
+   end subroutine get_ils_response_internal
+
+
+   subroutine ils_gauss(ils_dwave, reso, fwhm, resp)
+      real(double), dimension(:), intent(in) :: ils_dwave
+      real(double), intent(in) :: fwhm, reso
+      real(double), dimension(:), intent(out) :: resp
+      !*** local variables
+      integer :: ils
+      real(double) :: sigma, sqrt2pi, norm
+
+      sigma = fwhm * 0.42466090
+      sqrt2pi = 2.50662827
+      norm = 0
+
+      do ils = 1, size(ils_dwave)
+         resp(ils) = 1 / (sigma * sqrt2pi) * dexp(-0.5 * (ils_dwave(ils)/sigma)**2)
+         norm = norm + resp(ils)*reso
+      end do ! loop over ils
+
+      !*** normalize
+      resp = resp / norm
+   end subroutine ils_gauss
+
+
+   subroutine get_ils_response_from_file(response, filename, nwin, nrow)
       character(len=*), intent(in) :: filename
-      type(instrument_response), intent(out) :: response
-      integer, intent(out) :: ierr
-      !*** local
-      integer :: ncid, id, i, j
-      real(double), dimension(:, :), allocatable :: response_netcdf
-      real(double), dimension(:), allocatable :: dw, wavelength
+      integer, intent(in) :: nwin, nrow
+      type(instrument_response), dimension(:, :), allocatable, intent(inout) :: response
+      !*** local variables
+      type(instrument_response) :: response_from_file, response_tmp
+      integer :: nwave, wave, nils, ils
+      integer :: nwave_from_file, nils_from_file
+      integer :: nwave_tmp, nils_tmp
+      integer :: win, row
+      integer :: ierr
 
-      ! Read the ISRF from the NetCDF file
+      do win = 1, nwin
+         do row = 1, nrow
+            call read_ils_file(filename, response(win, row), response_from_file)
+
+            ! dimensions from file
+            nwave_from_file = response_from_file%nwave
+            nils_from_file = response_from_file%nils
+
+            ! target dimensions
+            nwave = response(win, row)%nwave
+            nils = response(win, row)%nils
+
+            ! dimensions after first interpolation step
+            nwave_tmp = nwave
+            nils_tmp = nils_from_file
+
+            ! interpolate onto lores wavelength grid
+            if(allocated(response_tmp%wavelength)) deallocate(response_tmp%wavelength)
+            if(allocated(response_tmp%ils_dwave)) deallocate(response_tmp%ils_dwave)
+            if(allocated(response_tmp%resp_store)) deallocate(response_tmp%resp_store)
+            allocate(response_tmp%wavelength(nwave_tmp))
+            allocate(response_tmp%ils_dwave(nwave_tmp, nils_tmp))
+            allocate(response_tmp%resp_store(nwave_tmp, nils_tmp))
+
+            response_tmp%wavelength = response(win, row)%wavelength
+            response_tmp%nwave = nwave_tmp
+            response_tmp%nils = nils_tmp
+
+            do ils = 1, nils_from_file
+               call spline_interpol( &
+                  response_from_file%wavelength, response_from_file%ils_dwave(:, ils), nwave_from_file, &
+                  response_tmp%wavelength, response_tmp%ils_dwave(:, ils), nwave_tmp, &
+                  ierr &
+               )
+               call spline_interpol( &
+                  response_from_file%wavelength, response_from_file%resp_store(:, ils), nwave_from_file, &
+                  response_tmp%wavelength, response_tmp%resp_store(:, ils), nwave_tmp, &
+                  ierr & 
+               )
+            end do ! loop over ils
+
+            ! interpolate onto hires ils_dwave grid
+            allocate(response(win, row)%resp_store(nwave, nils))
+
+            do wave = 1, nwave_tmp
+               call spline_interpol( &
+                  response_tmp%ils_dwave(wave, :), response_tmp%resp_store(wave, :), nils_tmp, &
+                  response(win, row)%ils_dwave(wave, :), response(win, row)%resp_store(wave, :), nils, &
+                  ierr &
+               )
+            end do ! loop over wave
+         end do ! loop over row
+      end do ! loop over win
+   end subroutine get_ils_response_from_file
+
+
+   subroutine read_ils_file(filename, response, response_from_file)
+      character(len=*), intent(in) :: filename
+      type(instrument_response), intent(in) :: response
+      type(instrument_response), intent(out) :: response_from_file
+      !*** local variables
+      real(double), dimension(:), allocatable :: wavelength, ils_dwave
+      real(double), dimension(:, :), allocatable :: resp
+      integer :: nwave, wave, nils, band, nband, current_band
+      integer :: ncid, grpid(3), varid
+      integer :: ierr
+      integer :: ierr_band_found ! number of data bands in file that surrounded fit window (debug)
+
       call check(nf90_open(trim(filename), nf90_nowrite, ncid), ierr)
 
-      ! Dimension size: number of wavelength differences
-      call check(nf90_inq_dimid(ncid, "dwl", id), ierr)
-      call check(nf90_inquire_dimension(ncid, id, len=response%nils), ierr)
+      ! get correct band from file. It's wavelength range has to surround
+      ! response%wavelength. The netcdf group containing this band needs to be used
+      call check(nf90_inq_grps(ncid, nband, grpid), ierr)
+      if (ierr .ne. 0) return
 
-      ! Dimension size: number of measured wavelengths
-      call check(nf90_inq_dimid(ncid, "wl_i", id), ierr)
-      call check(nf90_inquire_dimension(ncid, id, len=response%nwave), ierr)
+      ierr_band_found = 0
 
-      ! Allocate data fields of the ISRF
-      allocate (dw(response%nils))
-      allocate (response%ils_dwave(response%nwave, response%nils), stat=ierr) ! Wavelength differences for which the ISRF is defined ! {{{
-      allocate (wavelength(response%nwave), stat=ierr) ! Measured wavelengths at which the ISRF is defined ! {{{
-      allocate (response%wavelength(response%nwave), stat=ierr)
-      allocate (response_netcdf(response%nils, response%nwave), stat=ierr) ! Response function representative at different measured wavelengths as function of the wavelength difference. !
+      do band = 1, nband
+         ! check if this band contains a wavelength grid that surrounds the fit window
+         call check(nf90_inq_dimid(grpid(band), "channel", varid), ierr)
+         call check(nf90_inquire_dimension(grpid(band), varid, len=nwave), ierr)
 
-      ! Fill fields with data from NetCDF file
+         ! Get wavelengths of the current band and write them into dummy variable wavelength
+         if (allocated(wavelength)) deallocate(wavelength)
+         allocate(wavelength(nwave))
+         call check(nf90_inq_varid(grpid(band), "wavelength_center", varid), ierr)
+         call check(nf90_get_var(grpid(band), varid, wavelength), ierr)
 
-      ! Dimension domain: Wavelength differences
-      call check(nf90_inq_varid(ncid, "Wavelength_differences", id), ierr)
-      call check(nf90_get_var(ncid, id, dw), ierr)
+         ! check if current band surrounds current fit window. If not, go to the next band
+         if (wavelength(1) > response%wavelength(1) .or. wavelength(nwave) < response%wavelength(response%nwave)) then
+            if (band == nband) then
+               if (ierr_band_found == 0) then
+                  print*, "ERROR IN READ_ILS_FILE: No bands surrounded fit window."
+               else
+                  print*, "ERROR IN READ_ILS_FILE: ", ierr_band_found, " band(s) surrounded fit window but none had sufficiently large ils_dwave grid."
+               end if
+            end if
+            cycle
+         else
+            ierr_band_found = ierr_band_found + 1
+         end if
 
-      ! Dimension domain: Measured wavelengths
-      call check(nf90_inq_varid(ncid, "Measured_wavelengths", id), ierr)
-      call check(nf90_get_var(ncid, id, wavelength), ierr)
+         ! check if this band contains a wavelength offset grid that is sufficiently large
+         call check(nf90_inq_dimid(grpid(band), "d_channel", varid), ierr)
+         call check(nf90_inquire_dimension(grpid(band), varid, len=nils), ierr)
 
-      ! Data field: Response
-      call check(nf90_inq_varid(ncid, "Response", id), ierr)
-      call check(nf90_get_var(ncid, id, response_netcdf), ierr)
+         ! Get wavelength offsets of the current band and write them into dummy variable ils_dwave
+         if (allocated(ils_dwave)) deallocate(ils_dwave)
+         allocate(ils_dwave(nils))
+         call check(nf90_inq_varid(grpid(band), "wavelength_offset", varid), ierr)
+         call check(nf90_get_var(grpid(band), varid, ils_dwave), ierr)
 
-      allocate (response%resp_store(response%nwave, response%nils))
-      do i = 1, response%nwave
-         response%wavelength(i) = wavelength(i)
-         do j = 1, response%nils
-            response%ils_dwave(i, j) = dw(j)
-            response%resp_store(i, j) = response_netcdf(j, i)
-         end do
+         ! check if current band has sufficiently large ils_dwave. If not, go to the next band
+         if (ils_dwave(1) > maxval(response%ils_dwave(:, 1)) .or. ils_dwave(nils) < minval(response%ils_dwave(:, response%nils))) then
+            cycle
+         end if
+
+         current_band = band
+         exit
       end do
 
-      ! Close NetCDF file
+      ! correct band found to be current_band
+      ! we have nwave, nils, wavelength, and ils_dwave, write those into response_from_file
+      ! also get the correct response
+
+      ! wavelengths on which ils is defined
+      response_from_file%nwave = nwave
+      allocate(response_from_file%wavelength(nwave))
+      response_from_file%wavelength = wavelength
+
+      ! wavelength offsets for which ils is defined
+      allocate(response_from_file%ils_dwave(nwave, nils))
+      response_from_file%nils = nils
+      do wave = 1, nwave
+         response_from_file%ils_dwave(wave, :) = ils_dwave
+      end do ! loop over wave
+
+      ! response of ils
+      allocate(resp(nils, nwave))
+      call check(nf90_inq_varid(grpid(current_band), "response", varid), ierr)
+      call check(nf90_get_var(grpid(current_band), varid, resp), ierr)
+
+      allocate(response_from_file%resp_store(nwave, nils))
+      do wave = 1, nwave
+         response_from_file%resp_store(wave, :) = resp(:, wave)
+      end do ! loop over wave
+
       call check(nf90_close(ncid), ierr)
 
       ! Mark success
       ierr = 0
       return
-
-   end subroutine read_isrf_retrieve
-
-!------------------------------------------------------------------------------
+   end subroutine read_ils_file
 end module spectrum_interface_module

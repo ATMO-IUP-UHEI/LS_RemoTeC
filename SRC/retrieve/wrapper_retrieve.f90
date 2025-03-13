@@ -143,14 +143,13 @@ contains
          print*, "ERROR: READING ATMOSPHERE WITH FLAG ", fixed%flag%atm, " NOT SUPPORTED ANYMORE"
       end if
 
-      !*** Get Instrument Spectral Response Function on appropiate spectral grids:
-      !*** measured spectral grid (lo-reso) and model spectral grid (hi_reso)
-      !*** Note that the measured spectral grid needs to be set through datastructure measurement(nband)
-      allocate (fixed%response(1, size(measurement)), stat=ierr)
-      allocate (nrow(size(measurement)), stat=ierr)
-      nrow = 1 !ISRF is identical for all detector rows
+      ! Get ISRF
+      ! ISRF is identical for all detector rows
+      allocate(nrow(size(measurement)), stat=ierr)
+      nrow = 1
       call get_isrf_interpolated( &
          fixed%flag%ilscalc, &
+         fixed%flag%output, &
          trim(fixed%path%ils), &
          nrow, &
          fixed%win_ini, &

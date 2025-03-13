@@ -12,7 +12,7 @@ parallel = no
 # debug = yes / no
 debug = no
 # FORT = IUP-gfortran, DKRZ-gfortran, HELIX-gfortran
-FORT = IUP-gfortran
+FORT = HELIX-gfortran
 ############################
 
 # Directories for source files, object files, modules and dependency files
@@ -98,7 +98,7 @@ else ifeq ($(FORT),DKRZ-gfortran)
 
 else ifeq ($(FORT),HELIX-gfortran)
     make = gmake
-    fortlib = /home/hd/hd_hd/hd_oc152/software/lib_gnu/
+    fortlib = /home/hd/hd_hd/hd_gb423/.local/lib64
     nc-fortrandir = $(fortlib)/netcdf-fortran-4.6.1/build/
     nc-cdir = $(fortlib)/netcdf-c-4.9.2/build/
     hdfdir = $(fortlib)/hdf5-1.14.1-2/build/
