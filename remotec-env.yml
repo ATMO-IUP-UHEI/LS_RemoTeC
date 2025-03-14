@@ -1,0 +1,10 @@
+name: remotec-env
+channels:
+  - conda-forge
+dependencies:
+  - gfortran=12.2.0
+  - make=4.2.1
+  - netcdf-fortran=4.6.1
+  - libnetcdf=4.9.2
+  - hdf5=1.14.1
+  - zlib=1.2.13
