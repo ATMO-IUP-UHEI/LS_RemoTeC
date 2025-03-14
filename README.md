@@ -31,4 +31,4 @@ conda env create -f remotec-env.yml
 ```
 conda activate remotec-env
 ```
-You are now ready to work on and recompile RemoTeC. Do this using `make clean; make`
+You are now ready to work on RemoTeC. To compile it, run `make`.
