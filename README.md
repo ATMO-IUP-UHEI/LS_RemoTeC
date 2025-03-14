@@ -27,7 +27,8 @@ source ~/.bashrc
 conda env create -f remotec-env.yml
 ```
 
-### Step 3: Activate Conda Environment
+## Building
+RemoTeC needs to be built from the `remotec-env` conda environment. Activate it using
 ```
 conda activate remotec-env
 ```
