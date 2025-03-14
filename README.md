@@ -1,15 +1,18 @@
 # LS_RemoTeC
+
 ## Installation
-This version of RemoTeC handles dependencies using conda or miniconda. Whenever you want to recompile RemoTeC, you need to enter the `remotec-env` conda environment. If conda is installed (`conda --version`), go directory to step 2. If you do this and it turns out the setup you are working on does not allow you to create a conda environment, go back to step 1 and repeat.
+This version of RemoTeC handles dependencies using conda or miniconda. Whenever you want to compile RemoTeC, you need to enter the `remotec-env` conda environment.
 
 ### Step 1: Install Miniconda
+If conda is installed (`conda --version`) and allows you to create your own environment, skip ahead to step 2.
+Else, install miniconda as follows:
 ```
 mkdir -p ~/.local
 cd ~/.local
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
 ```
-when prompted for installation location, enter:
+When prompted for installation location, enter:
 ```
 $HOME/.local/miniconda3
 ```
