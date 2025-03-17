@@ -24,7 +24,7 @@ source ~/.bashrc
 
 ### Step 2: Create Conda Environment
 ```
-conda env create -f remotec-env.yml
+conda env create -f environment.yml
 ```
 
 ## Building
