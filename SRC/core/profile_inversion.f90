@@ -1039,6 +1039,15 @@ contains
                call_x_apr, &
                call_ak, call_cf, lambda, degfreedom, dfs_target, dfs_scat,&
                call_upperx, call_lowerx, SVDFlag,Boundary_Flag)
+       elseif(flag%inv==4) then
+          call adhoc_inversion_matrix(&
+               absorb%ntype_target, naer-aer_red, &
+               nwave_lo, nstate-reduction, nlay, regskill, flag%reg,&
+               call_derivatives_lo, ymeas, ymod, ycov,&
+               call_x_state, call_s_state,&
+               call_x_apr, &
+               call_ak, call_cf, lambda, degfreedom, dfs_target, dfs_scat,&
+               call_upperx, call_lowerx, SVDFlag,Boundary_Flag)
        endif
 
        !*** Rewrite the reduced arrays used for the call to pt_inversion into the full arrays needed in profile_inversion
