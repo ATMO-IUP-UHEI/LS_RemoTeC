@@ -157,7 +157,7 @@ contains
    subroutine adhoc_inversion_matrix(&
       ntype_target, naer, &
       ny, nx, nlay, regskill, reg, &
-      kmat, ymeas, ymod, s_y, &
+      kmat, ymeas, ymod, s_y_vector, &
       x_i, s_x, x_apr, &
       a_avg, d_mat, lambda, dfs, dfs_target, dfs_scat, upbd, lowbd, invflag, Boundary_Flag)
 
@@ -171,9 +171,10 @@ contains
       real(double), dimension(ntype_target) :: dfs_target
       real(double), dimension(ny, nx) :: kmat
       real(double), dimension(ny) :: ymeas, ymod, yres
-      real(double), dimension(ny) :: s_y
+      real(double), dimension(ny) :: s_y_vector
+      real(double), dimension(ny, ny) :: s_y, s_y_inv
       real(double), dimension(nx) :: x_i, x_apr, x_sm, upbd, lowbd
-      real(double), dimension(nx, nx) :: s_x, a_avg, unit_avg
+      real(double), dimension(nx, nx) :: s_x, s_x_inv, a_avg, unit_avg
       real(double), dimension(nx, ny) :: d_mat
       integer, dimension(nx) :: regskill
       type(regularization_class), intent(in) :: reg
@@ -200,38 +201,32 @@ contains
       !*** Calculate yres
       yres = ymeas - ymod
 
-      !*** Pull covariance into variables
-      forall (l=1:ny)
-         yres(l) = yres(l)/DSQRT(s_y(l))
-         kmat(l, :) = kmat(l, :)/DSQRT(s_y(l))
-      end forall
+      !*** Get inverse of measurement covariance matrix
+      s_y = 0.
+      s_y_inv = 0.
+      do l = 1, ny
+         s_y(l, l) = s_y_vector(l)
+         s_y_inv(l, l) = 1./s_y_vector(l)
+      end do  ! loop over l
 
       !*** Regularization matrix H
       call REGU_PAR(ntype_target, naer, nlay, nx, reg, H)
 
-      ! IF(runid==0)THEN
-      !    OPEN(50,FILE=TRIM(runpath)//'CONTRL_OUT/hmat.dat')
-      !    DO i=1,nx
-      !       WRITE(50,'(100(1pE13.5,x))')H(i,:)
-      !    ENDDO
-      !    CLOSE(50)
-      ! ENDIF
-
-      !*** Invert s_x
-      !*** (s_x)-1 = (KT*K+g*H)-1
-      call inverse_lu(matmul(transpose(kmat), kmat) + H, nx, s_x, invflag)
+      !*** Calculate s_x_inv
+      !*** s_x_inv = (KT*K+g*H)-1
+      call inverse_lu(matmul(matmul(transpose(kmat), s_y_inv), kmat) + H, nx, s_x_inv, invflag)
 
       !*** Next iteration state vector
-      x_i = x_i + 1./(1.+lambda)*matmul(s_x, (matmul(transpose(kmat), yres) - matmul(H, (x_i - x_0))))
+      x_i = x_i + 1./(1.+lambda)*matmul(s_x_inv, (matmul(matmul(transpose(kmat), s_y_inv), yres) - matmul(H, (x_i - x_0))))
 
       !*** Contribution function matrix
-      d_mat = matmul(s_x, transpose(kmat))
+      d_mat = matmul(matmul(s_x_inv, transpose(kmat)), s_y_inv)
 
       !*** Averaging kernel matrix
-      a_avg = matmul(s_x, matmul(transpose(kmat), kmat))
+      a_avg = matmul(d_mat, kmat)
 
       !*** Replace s_x by noise error
-      s_x = MATMUL(d_mat, TRANSPOSE(d_mat))
+      s_x = matmul(matmul(d_mat, s_y), transpose(d_mat))
 
       !*** Add apriori, x=A*xtrue+(1-A)*xapr, if applicable
       unit_avg = -a_avg
@@ -277,7 +272,7 @@ contains
 
       forall (i=1:nx, j=1:nx) s_x(i, j) = s_x(i, j)*weight(i)*weight(j)
       forall (i=1:nx, j=1:nx) a_avg(i, j) = a_avg(i, j)*weight(i)/weight(j)
-      forall (i=1:nx, j=1:ny) d_mat(i, j) = d_mat(i, j)*weight(i)/DSQRT(s_y(j))
+      forall (i=1:nx, j=1:ny) d_mat(i, j) = d_mat(i, j)*weight(i)
 
       !*** Check for hitting the boundaries
       do i = 1, nx
@@ -297,6 +292,7 @@ contains
             end if
          end if
       end do
+
    end subroutine adhoc_inversion_matrix
 
 !*************************************************************************************
