@@ -226,7 +226,10 @@ contains
       a_avg = matmul(d_mat, kmat)
 
       !*** Replace s_x by noise error
-      s_x = matmul(matmul(d_mat, s_y), transpose(d_mat))
+      !*** s_x = d_mat * s_y * d_mat^T
+      !*** plug in d_mat = s_x_inv * kmat^T * s_y_inv
+      !*** --> s_x = s_x_inv * kmat^T * d_mat^T
+      s_x = matmul(matmul(s_x_inv, transpose(kmat)), transpose(d_mat))
 
       !*** Add apriori, x=A*xtrue+(1-A)*xapr, if applicable
       unit_avg = -a_avg
