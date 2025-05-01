@@ -159,10 +159,11 @@ contains
       ny, nx, nlay, regskill, reg, &
       kmat, ymeas, ymod, s_y_vector, &
       x_i, s_x, x_apr, &
-      a_avg, d_mat, lambda, dfs, dfs_target, dfs_scat, upbd, lowbd, invflag, Boundary_Flag)
+      a_avg, d_mat, lambda, dfs, dfs_target, dfs_scat, upbd, lowbd, invflag, Boundary_Flag, line_number)
 
       implicit none
       integer, intent(in) :: ntype_target, naer
+      integer, intent(in) :: line_number  ! hack
       integer, intent(out) :: Boundary_Flag
       integer, intent(out) :: invflag
       integer :: i, j, k, l
@@ -172,7 +173,7 @@ contains
       real(double), dimension(ny, nx) :: kmat
       real(double), dimension(ny) :: ymeas, ymod, yres
       real(double), dimension(ny) :: s_y_vector
-      real(double), dimension(ny, ny) :: s_y, s_y_inv
+      real(double), dimension(ny, ny) :: s_y_inv
       real(double), dimension(nx) :: x_i, x_apr, x_sm, upbd, lowbd
       real(double), dimension(nx, nx) :: s_x, s_x_inv, a_avg, unit_avg
       real(double), dimension(nx, ny) :: d_mat
@@ -202,18 +203,32 @@ contains
       yres = ymeas - ymod
 
       !*** Get inverse of measurement covariance matrix
-      s_y = 0.
-      s_y_inv = 0.
-      do l = 1, ny
-         s_y(l, l) = s_y_vector(l)
-         s_y_inv(l, l) = 1./s_y_vector(l)
-      end do  ! loop over l
+      print*, "DEVELOPMENT: GET INVERSE OF COVARIANCE MATRIX"
+      i = 1
+      if (i .eq. 0) then
+         print*, "CALCULATE COV_INV FROM DIAGONAL s_y_vector"
+         s_y_inv = 0.
+         do l = 1, ny
+            s_y_inv(l, l) = 1./s_y_vector(l)
+         end do  ! loop over l
+      else if (i .eq. 1) then
+         print*, "USE HARDCODED FILE FOR COV_INV"
+         call read_nc_s_y_inv("CONTRL_OUT/MTF_OUT_DATA.nc", s_y_inv, ny, line_number)
+      else
+         stop
+      end if
+
+      ! do i = 1, ny
+      !    print*, s_y_inv(i, :)
+      ! end do
+      ! stop
 
       !*** Regularization matrix H
       call REGU_PAR(ntype_target, naer, nlay, nx, reg, H)
 
       !*** Calculate s_x_inv
       !*** s_x_inv = (KT*K+g*H)-1
+      !*** s_x_inv := rodgers (3.31) S_hat, noise error plus smoothing component
       call inverse_lu(matmul(matmul(transpose(kmat), s_y_inv), kmat) + H, nx, s_x_inv, invflag)
 
       !*** Next iteration state vector
@@ -225,10 +240,11 @@ contains
       !*** Averaging kernel matrix
       a_avg = matmul(d_mat, kmat)
 
-      !*** Replace s_x by noise error
+      !*** Replace s_x by noise error, since smoothing is already described by averaging kernel
       !*** s_x = d_mat * s_y * d_mat^T
       !*** plug in d_mat = s_x_inv * kmat^T * s_y_inv
       !*** --> s_x = s_x_inv * kmat^T * d_mat^T
+      !*** s_x := rodgers (3.19) S_m
       s_x = matmul(matmul(s_x_inv, transpose(kmat)), transpose(d_mat))
 
       !*** Add apriori, x=A*xtrue+(1-A)*xapr, if applicable
@@ -300,6 +316,67 @@ contains
 
 !*************************************************************************************
 
+   subroutine read_nc_s_y_inv(filepath, cov_inv_y, ny, line_number)
+      use netcdf
+      !*** input
+      character(len=*), intent(in) :: filepath
+      integer, intent(in) :: ny
+      integer, intent(in) :: line_number  ! hack (within a hack)
+      !*** output
+      real(double), dimension(ny, ny), intent(out) :: cov_inv_y
+      !*** local
+      real(double), dimension(:, :), allocatable :: cov_inv_co2
+      real(double), dimension(:, :), allocatable :: cov_inv_ch4
+      integer ncid, varid
+      integer n_co2, n_ch4
+      integer :: start3d(3)
+      integer ierr
+      !***
+      ! Very hacky routine. If it is still here after I am gone, I am terribly sorry.
+
+      call check(nf90_open(trim(filepath), nf90_nowrite, ncid), ierr)
+      if (ierr .ne. 0) then
+         print*, "ERROR IN READ_NC_S_Y_INV (HACK): Error opening MTF_DATA_OUT.nc"
+      end if
+
+      call check(nf90_inq_dimid(ncid, "wavelength1_co2", varid), ierr)
+      call check(nf90_inquire_dimension(ncid, varid, len=n_co2), ierr)
+      call check(nf90_inq_dimid(ncid, "wavelength1_ch4", varid), ierr)
+      call check(nf90_inquire_dimension(ncid, varid, len=n_ch4), ierr)
+
+      if (n_co2 + n_ch4 .ne. ny) stop
+
+      ! location of data in netcdf file
+      start3d = (/1, 1, line_number/)
+
+      if (allocated(cov_inv_co2)) deallocate(cov_inv_co2)
+      allocate(cov_inv_co2(n_co2, n_co2))
+      call check(nf90_inq_varid(ncid, "cov_inv_co2", varid), ierr)  ! beware of third dimension line
+      call check(nf90_get_var(ncid, varid, cov_inv_co2, start3d), ierr)
+
+      if (allocated(cov_inv_ch4)) deallocate(cov_inv_ch4)
+      allocate(cov_inv_ch4(n_ch4, n_ch4))
+      call check(nf90_inq_varid(ncid, "cov_inv_ch4", varid), ierr)  ! beware of third dimension line
+      call check(nf90_get_var(ncid, varid, cov_inv_ch4, start3d), ierr)
+
+      call check(nf90_close(ncid), ierr)
+
+      cov_inv_y = 0
+      cov_inv_y(1:n_co2, 1:n_co2) = cov_inv_co2(:, :)
+      cov_inv_y(n_co2+1:ny, n_co2+1:ny) = cov_inv_ch4(:, :)
+
+      print*, "DEBUG:"
+      print*, "line_number = ", line_number
+      print*, "cov_inv_y = "
+      do ierr = 1, 3
+         print*, cov_inv_y(ierr, 1:4)
+      end do
+      print*, "shape(cov_inv_y) = "
+      print*, shape(cov_inv_y)
+   end subroutine read_nc_s_y_inv
+
+!*************************************************************************************
+ 
    subroutine regu_par(ntype_target, naer, nlay, &
                        nx, reg, hmat)
       integer, intent(in) :: ntype_target, naer, nlay

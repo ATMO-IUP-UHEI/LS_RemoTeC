@@ -8,3 +8,4 @@ DEPEND/*.d.tmp
 SRC/core/NUM_TOOLS/libNts.a
 RemoTeC_create
 RemoTeC_retrieve
+RUNDIR

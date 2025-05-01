@@ -17,7 +17,7 @@ module spectrum_interface_module
 
 contains
 
-   subroutine read_l1b(infile, outputflag, measurement, meta, ierr, synthetic_input_flag, observer_location, win_ini, instr_errors)
+   subroutine read_l1b(infile, outputflag, measurement, meta, ierr, synthetic_input_flag, line_number, observer_location, win_ini, instr_errors)
       !** Input
       character(len=*), intent(in) :: infile
       integer, intent(in) :: outputflag
@@ -29,6 +29,7 @@ contains
       type(spectrum), dimension(:), allocatable, intent(out) :: measurement
       type(metadata), intent(out) :: meta
       integer, intent(out) :: ierr
+      integer, intent(out) :: line_number
       !*** local variables
       integer :: nstokes_l1b, nst
       real(double), dimension(4) :: s = (/1.d0, 0.D0, 0.D0, 0.d0/)
@@ -60,6 +61,9 @@ contains
       ! Extract index in y-dimension to be read
       i = INDEX(index_info, 'Y')
       read (index_info(i + 1:i + 6), '(I6)') sy
+
+      print*, "awful, awful hack. line_number is carried all the way through remotec."
+      line_number = sx
 
       if (outputflag >= 2) then
          call writelog('*** Start of READ_L1B ***', 1)

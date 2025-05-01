@@ -44,6 +44,7 @@ module retrieval_module
           flag, &
           win_ini, aerosol_ini, &
           aero_lut, cirrus_lut, &
+         line_number, &
           retrieval_output, ierr, meas_irr_hi)
        !*** Input
        type(spectrum), dimension(:), intent(in) :: measurement
@@ -57,6 +58,7 @@ module retrieval_module
        type(metadata), intent(in) :: meta
        type(aero), dimension(:), intent(in) :: aerosol_ini
        type(sun_spectrum), dimension(:), optional, intent(in) :: meas_irr_hi
+      integer, intent(in) :: line_number  ! hack
        !*** Output
        type(retrieval_data), intent(out) :: retrieval_output
        integer, intent(out) :: ierr
@@ -136,7 +138,7 @@ module retrieval_module
             absorb, atm_rt, atm_xs, dvair, &
             response, &
             win_ini, win, aerosol, &
-            retrieval_output, ierr)
+            retrieval_output, ierr, line_number)
 
        if (retrieval_output%error_id.ne.0 .or. ierr.ne.0 ) ierr = ierr_conv
 

@@ -87,7 +87,7 @@ contains
        nlay, &
        absorb, atm_rt, atm_xs, dvair, &
        response, &
-       win_ini, win, aerosol, retrieval_output, ierr)
+       win_ini, win, aerosol, retrieval_output, ierr, line_number)
     type(Mie_lut), intent(in) :: aero_lut
     type(cirrus_table), intent(in) :: cirrus_lut
     type(settings_flags), intent(in) :: flag
@@ -97,6 +97,7 @@ contains
     type(atmosphere), intent(in) :: atm_rt
     type(instrument_response), dimension(:), intent(in) :: response
     type(window_ini), dimension(:), intent(in) :: win_ini
+      integer, intent(in) :: line_number  ! hack
     !*** Input/output
     type(atmosphere), intent(inout) :: atm_xs
     real(double), dimension(:), intent(inout) :: dvair      ! Partial air column, subject to change in O2 retrieval (Dim: natm)
@@ -1047,8 +1048,29 @@ contains
                call_x_state, call_s_state,&
                call_x_apr, &
                call_ak, call_cf, lambda, degfreedom, dfs_target, dfs_scat,&
-               call_upperx, call_lowerx, SVDFlag,Boundary_Flag)
+               call_upperx, call_lowerx, SVDFlag,Boundary_Flag, line_number)
        endif
+
+       ! print*, "State Vector"
+       ! do l = 1, 3
+       !    print*, call_x_state(l)
+       ! end do
+
+       ! print*, "State Vector Covariance Matrix"
+       ! do l = 1, 3
+       !    print*, call_s_state(1:4, l)
+       ! end do
+
+       ! print*, "Gain Function"
+       ! do l = 1, 3
+       !    print*, call_cf(1:4, l)
+       ! end do
+
+       ! print*, "Averaging Kernel"
+       ! do l = 1, 3
+       !    print*, call_ak(1:4, l)
+       ! end do
+       ! stop
 
        !*** Rewrite the reduced arrays used for the call to pt_inversion into the full arrays needed in profile_inversion
        if (reduction > 0) then

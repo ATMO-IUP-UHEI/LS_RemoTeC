@@ -14,6 +14,7 @@ program main
    type(output_data), pointer :: outputData
    character(stringlen), dimension(:), allocatable :: atm
    integer, dimension(:), allocatable :: pixelid                          ! Identifier for groundpixel
+   integer :: line_number                                                 ! Line number is carried all the way through RemoTeC (awful hack)
    character(stringlen) :: runpath, atm_file, arg, first_atm
    integer :: i, nfile, runid, ierr, io
    real(double) :: stoptime, starttime
@@ -73,9 +74,9 @@ program main
    !$OMP PARALLEL private(varyingData, outputData, ierr)
    !$OMP DO
    do i = 1, nfile
-      call init_pixel(fixedData, varyingData, outputData, atm(i), pixelid(i), ierr)
+      call init_pixel(fixedData, varyingData, outputData, atm(i), pixelid(i), ierr, line_number)
       if (ierr == 0) then
-         call retrieve_wrapper(fixedData, varyingData, outputData, ierr)
+         call retrieve_wrapper(fixedData, varyingData, outputData, ierr, line_number)
          !$OMP CRITICAL(writefile)
          call write_output(runID, fixedData, varyingData, fixedData%flag%atm, outputData)
          !$OMP END CRITICAL(writefile)

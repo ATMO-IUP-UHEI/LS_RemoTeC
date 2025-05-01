@@ -63,6 +63,7 @@ contains
       type(metadata) :: meta
       type(sun_spectrum) :: sun_input  ! input reference solar spectrum
       character(stringlen) :: settings_file, spectrum_file
+      integer :: line_number  ! hack
       character(6):: runidstring
       integer :: i, k, n
       integer, dimension(:), allocatable :: nrow
@@ -137,7 +138,7 @@ contains
 
       !*** Get measured spectral grid
       if (fixed%flag%atm == 4) then
-         call read_l1b(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini)
+         call read_l1b(trim(fixed%path%spectrum)//'L1B_'//first_atm, fixed%flag%output, measurement, meta, ierr, fixed%flag%synthetic_input, line_number, fixed%flag%observer_location, fixed%win_ini)
          if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_l1b.', 8)
       else
          print*, "ERROR: READING ATMOSPHERE WITH FLAG ", fixed%flag%atm, " NOT SUPPORTED ANYMORE"
@@ -175,13 +176,14 @@ contains
 !------------------------------------------------------------------------------
 !> Prepare ground-pixel dependent input data for retrieval algorithm
 !------------------------------------------------------------------------------
-   subroutine init_pixel(fixed, varying, output, atm, ipixel, ierr)
+   subroutine init_pixel(fixed, varying, output, atm, ipixel, ierr, line_number)
       type(shared_data), pointer, intent(in) :: fixed
       type(pixel_data), pointer :: varying
       type(output_data), pointer :: output
       character(stringlen), intent(in):: atm
       integer, intent(in) :: ipixel
       integer, intent(out) :: ierr
+      integer, intent(out) :: line_number
       !*** local
       character(6) :: name
 
@@ -213,7 +215,7 @@ contains
       !*** spectrum
       if (fixed%flag%atm == 4) then
          varying%spectrum_file = trim(fixed%path%spectrum)//'L1B_'//trim(varying%filename)
-         call read_l1b(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
+         call read_l1b(varying%spectrum_file, fixed%flag%output, varying%measurement, varying%meta, ierr, fixed%flag%synthetic_input, line_number, fixed%flag%observer_location, fixed%win_ini, fixed%instr_errors)
          if (ierr .ne. 0) return
       else
          print*, "ERROR: READING ATMOSPHERE WITH FLAG ", fixed%flag%atm, " NOT SUPPORTED ANYMORE"
@@ -255,11 +257,12 @@ contains
 !------------------------------------------------------------------------------
 !> Call retrieval algorithm
 !------------------------------------------------------------------------------
-   subroutine retrieve_wrapper(fixed, varying, output, ierr)
+   subroutine retrieve_wrapper(fixed, varying, output, ierr, line_number)
       implicit none
       type(shared_data), pointer, intent(in) :: fixed
       type(pixel_data), pointer, intent(inout) :: varying
       type(output_data), pointer, intent(inout) :: output
+      integer, intent(in) :: line_number  ! hack
       integer, intent(out) :: ierr
 
       call retrieval(varying%measurement, varying%meta, fixed%response(1, :), varying%atm_scenario, &
@@ -267,6 +270,7 @@ contains
                      fixed%flag, &
                      fixed%win_ini, fixed%aerosol_ini, &
                      fixed%aero_lut, fixed%cirrus_lut, &
+                     line_number, &
                      output%retrieval_output, ierr)
 
    end subroutine retrieve_wrapper
