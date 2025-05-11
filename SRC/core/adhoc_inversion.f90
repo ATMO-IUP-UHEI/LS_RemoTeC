@@ -344,7 +344,6 @@ contains
       call check(nf90_inq_dimid(ncid, "wavelength1_ch4", varid), ierr)
       call check(nf90_inquire_dimension(ncid, varid, len=n_ch4), ierr)
 
-      if (n_co2 + n_ch4 .ne. ny) stop
 
       ! location of data in netcdf file
       start3d = (/1, 1, line_number/)
@@ -361,9 +360,26 @@ contains
 
       call check(nf90_close(ncid), ierr)
 
-      cov_inv_y = 0
-      cov_inv_y(1:n_co2, 1:n_co2) = cov_inv_co2(:, :)
-      cov_inv_y(n_co2+1:ny, n_co2+1:ny) = cov_inv_ch4(:, :)
+      ! strong bands + weak bands:
+      ! co2: 12 + 19 = 31
+      ! ch4: 35 + 19 = 54
+      ! remotec for both bands should have 3 windows with
+      ! 12 + 35 + 19 = 66
+      if (n_co2 .eq. 12 .and. n_ch4 .eq. 35 .and. ny .eq. 47) then
+         print*, "using strong bands"
+         cov_inv_y = 0
+         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
+         cov_inv_y(13:47, 13:47) = cov_inv_ch4(1:35, 1:35)
+      else if (n_co2 .eq. 31 .and. n_ch4 .eq. 54 .and. ny .eq. 66) then
+         print*, "using both bands"
+         cov_inv_y = 0
+         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
+         cov_inv_y(13:47, 13:47) = cov_inv_ch4(1:35, 1:35)
+         cov_inv_y(48:66, 48:66) = cov_inv_co2(13:31, 13:31)
+      else
+         print*, "error in read_nc_s_y_inv: incorrect window setup"
+         stop
+      end if
 
       print*, "DEBUG:"
       print*, "line_number = ", line_number
