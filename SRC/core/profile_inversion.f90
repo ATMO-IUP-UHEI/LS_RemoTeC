@@ -667,12 +667,30 @@ contains
           enddo
           close(io)
        endif
-
+       
+       !*** CHI2, housekeeping Levenberg-Marquardt
+       chi2 = 0.d0
+       rms = 0.d0
+       do l = 1, nwave_lo
+          chi2 = chi2 + (ymeas(l)-ymod(l))**2/ycov_unscaled(l)
+          rms = rms + (ymeas(l) - ymod(l))**2
+       enddo
+       !*** Get reduced chi2
+       chi2 = chi2/(nwave_lo-degfreedom)
+       rms = sqrt(rms/nwave_lo)
+       if(chi2 > 1d10 .or. chi2 /=chi2) then
+          error_id = 96 ! Chi2 too high. Abort retrieval immediately:
+          iterflag='ITER_CHI2'
+          exitflag = 1
+       endif
+       
        !*** STOP Iteration ?
-        residual = DABS(sum(x_state(1:nlay*absorb%ntype_target))/sum(x_state_old(1:nlay*absorb%ntype_target))-1.)
+       residual = DABS(chi2old/chi2-1.D0)
+       !residual = DABS(sum(x_state(1:nlay*absorb%ntype_target))/sum(x_state_old(1:nlay*absorb%ntype_target))-1.)
        !residual = abs(sum(x_state(:))/sum(x_state_old(:))-1.)
        if (iter > nlsq+1) then
-          state_stop = 5.D-1*DSQRT(sum(s_state(1:nlay*absorb%ntype_target,1:nlay*absorb%ntype_target)))/sum(x_apr(1:nlay*absorb%ntype_target))
+          state_stop = 5.D-2
+          !state_stop = 5.D-1*DSQRT(sum(s_state(1:nlay*absorb%ntype_target,1:nlay*absorb%ntype_target)))/sum(x_apr(1:nlay*absorb%ntype_target))
           !state_stop = sqrt(sum(s_state(:,:)))/sum(x_apr(:))
        endif
 
@@ -699,22 +717,6 @@ contains
              endif
              ExitFlag=1
           endif
-       endif
-
-       !*** CHI2, housekeeping Levenberg-Marquardt
-       chi2 = 0.d0
-       rms = 0.d0
-       do l = 1, nwave_lo
-          chi2 = chi2 + (ymeas(l)-ymod(l))**2/ycov_unscaled(l)
-          rms = rms + (ymeas(l) - ymod(l))**2
-       enddo
-       !*** Get reduced chi2
-       chi2 = chi2/(nwave_lo-degfreedom)
-       rms = sqrt(rms/nwave_lo)
-       if(chi2 > 1d10 .or. chi2 /=chi2) then
-          error_id = 96 ! Chi2 too high. Abort retrieval immediately:
-          iterflag='ITER_CHI2'
-          exitflag = 1
        endif
 
        !*** Write screen/log output

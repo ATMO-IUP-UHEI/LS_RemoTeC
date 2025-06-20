@@ -33,7 +33,7 @@ contains
       integer :: time_id, lon_id, lat_id, elev_id, z_id
       character(stringlen) :: meteo_file, index_info, message
 !-----------------------------------------------------
-
+      
       i = INDEX(infile, '.nc')
       index_info = infile(i + 4:)
       meteo_file = trim(infile(:i + 2))
@@ -88,6 +88,9 @@ contains
       if (allocated(atm_scenario%co2)) deallocate (atm_scenario%co2)
       if (allocated(atm_scenario%ch4)) deallocate (atm_scenario%ch4)
       if (allocated(atm_scenario%co)) deallocate (atm_scenario%co)
+      if (allocated(atm_scenario%n2o)) deallocate (atm_scenario%n2o)
+      if (allocated(atm_scenario%hcl)) deallocate (atm_scenario%hcl)
+      if (allocated(atm_scenario%hf)) deallocate (atm_scenario%hf)
       allocate ( &
          atm_scenario%z(nlevel), &
          atm_scenario%p(nlevel), &
@@ -95,7 +98,10 @@ contains
          atm_scenario%h2o(nlevel), &
          atm_scenario%co2(nlevel), &
          atm_scenario%ch4(nlevel), &
-         atm_scenario%co(nlevel))
+         atm_scenario%co(nlevel), &
+         atm_scenario%n2o(nlevel), &
+         atm_scenario%hcl(nlevel), &
+         atm_scenario%hf(nlevel))
 
       call netcdf_get_vector_var(ncid, "pressure", atm_scenario%p, start3d)
       ! internally, RemoTeC works with hPa, pressure provided in Pa
@@ -107,26 +113,45 @@ contains
       if (nf90_inq_varid(ncid, "h2o", i) /= nf90_enotvar) then
          call netcdf_get_vector_var(ncid, "h2o", atm_scenario%h2o, start3d)
       else
-         atm_scenario%h2o = 0
+         atm_scenario%h2o = 0.
       end if
 
       if (nf90_inq_varid(ncid, "co2", i) /= nf90_enotvar) then
          call netcdf_get_vector_var(ncid, "co2", atm_scenario%co2, start3d)
       else
-         atm_scenario%co2 = 0
+         atm_scenario%co2 = 0.
       end if
 
       if (nf90_inq_varid(ncid, "ch4", i) /= nf90_enotvar) then
          call netcdf_get_vector_var(ncid, "ch4", atm_scenario%ch4, start3d)
       else
-         atm_scenario%ch4 = 0
+         atm_scenario%ch4 = 0.
       end if
 
       if (nf90_inq_varid(ncid, "co", i) /= nf90_enotvar) then
          call netcdf_get_vector_var(ncid, "co", atm_scenario%co, start3d)
       else
-         atm_scenario%co = 0
+         atm_scenario%co = 0.
       end if
+
+      if (nf90_inq_varid(ncid, "n2o", i) /= nf90_enotvar) then
+         call netcdf_get_vector_var(ncid, "n2o", atm_scenario%n2o, start3d)
+      else
+         atm_scenario%n2o = 0.
+      end if
+
+      if (nf90_inq_varid(ncid, "hcl", i) /= nf90_enotvar) then
+         call netcdf_get_vector_var(ncid, "hcl", atm_scenario%hcl, start3d)
+      else
+         atm_scenario%hcl = 0.
+      end if
+
+      if (nf90_inq_varid(ncid, "hf", i) /= nf90_enotvar) then
+         call netcdf_get_vector_var(ncid, "hf", atm_scenario%hf, start3d)
+      else
+         atm_scenario%hf = 0.
+      end if
+
 
       meta%surface_elevation = atm_scenario%z(nlevel)
       atm_scenario%surface_pressure = atm_scenario%p(nlevel)

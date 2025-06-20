@@ -25,6 +25,9 @@ module atmosphere_internal_module
       real(double), dimension(:), allocatable :: co2    !< VMR CO2 [1]
       real(double), dimension(:), allocatable :: ch4    !< VMR CH4 [1]
       real(double), dimension(:), allocatable :: co     !< VMR CO  [1]
+      real(double), dimension(:), allocatable :: n2o    !< VMR N2O [1]
+      real(double), dimension(:), allocatable :: hcl    !< VMR HCl [1]
+      real(double), dimension(:), allocatable :: hf     !< VMR HF  [1]
       real(double) :: surface_pressure                  !< surface pressure [hPa]
       real(double) :: surface_elevation                 !< surface elevaltion [m]
       real(double) :: surface_wspeed                    !< surface wind speed [m/s]
@@ -76,8 +79,8 @@ contains
       integer, dimension(1) :: imin, imax, zmin
       integer :: nlay, nrt, natm, nstart(1), ip
       real(double) :: psurf, ptop, dp, dz, zsc
-      real(double), dimension(:), allocatable :: vair, vh2o, vco2, vch4, vco, vhdo
-      real(double), dimension(:), allocatable :: dvh2o, dvco2, dvo2, dvch4, dvco, dvhdo
+      real(double), dimension(:), allocatable :: vair, vh2o, vco2, vch4, vco, vhdo, vn2o, vhcl, vhf
+      real(double), dimension(:), allocatable :: dvh2o, dvco2, dvo2, dvch4, dvco, dvhdo, dvn2o, dvhcl, dvhf 
       real(double), dimension(:), allocatable :: dT_dz, dh2o_dz
       real(double) :: rE, gE0
       real(double), dimension(:), allocatable :: gE
@@ -101,18 +104,20 @@ contains
       ierr = 0
       !*** Dimensions
       nlay = grid%nlay
-      nrt = nlay*grid%nrt
+      nrt  = nlay*grid%nrt
       natm = nrt*grid%natm
       atm_retr%n = nlay
-      atm_rt%n = nrt
-      atm_xs%n = natm
+      atm_rt%n   = nrt
+      atm_xs%n   = natm
 
       !*** local allocatables
       allocate (plev_atm(natm + 1), zlev_atm(natm + 1), tlev_atm(natm + 1), &
                 plev_rt(nrt + 1), zlev_rt(nrt + 1), tlev_rt(nrt + 1), &
                 zlay_atm(natm), dz_atm(natm), dT_dz(natm), dh2o_dz(natm), &
                 vair(natm + 1), vh2o(natm), vco2(natm), vch4(natm), vco(natm), vhdo(natm), &
+                vn2o(natm), vhcl(natm), vhf(natm), &
                 dvh2o(natm), dvco2(natm), dvo2(natm), dvch4(natm), dvco(natm), dvhdo(natm), &
+                dvn2o(natm), dvhcl(natm), dvhf(natm), &
                 gE(natm + 1), &
                 stat=ierr)
       if (ierr .ne. 0) then
@@ -146,7 +151,9 @@ contains
       dz = atm_in%z(n) - surface_elevation
 
       if (dz .ge. 0.) then  !ECMWF height > DEM height
-       allocate(atm_input%p(n), atm_input%t(n), atm_input%z(n), atm_input%h2o(n), atm_input%ch4(n),atm_input%co(n),atm_input%co2(n), stat=ierr)
+       allocate(atm_input%p(n),  atm_input%t(n),  atm_input%z(n), atm_input%h2o(n),&
+                atm_input%ch4(n),atm_input%co(n), atm_input%co2(n),&
+                atm_input%n2o(n),atm_input%hcl(n),atm_input%hf(n), stat=ierr)
          if (ierr .ne. 0) then
             write (message, *) 'ATMOSPHERE_INTERPOLATE: memory allocation error'
             ierr = ierr_all
@@ -159,16 +166,20 @@ contains
          atm_input%z(1:n - 1) = atm_in%z(1:n - 1)
          atm_input%t(n) = atm_in%t(n) + 0.0065*dz
          atm_input%t(1:n - 1) = atm_in%t(1:n - 1)
-         atm_input%h2o = atm_in%h2o
-         atm_input%ch4 = atm_in%ch4
-         atm_input%co = atm_in%co
-         if (allocated(atm_in%co2)) atm_input%co2 = atm_in%co2
+         atm_input%h2o  = atm_in%h2o
+         atm_input%ch4  = atm_in%ch4
+         atm_input%co   = atm_in%co
+         atm_input%co2  = atm_in%co2
+         atm_input%n2o  = atm_in%n2o
+         atm_input%hcl  = atm_in%hcl
+         atm_input%hf   = atm_in%hf   
       else               !ECMWF height < DEM height
          nstart = minloc(abs(atm_in%z - surface_elevation))
          ip = nstart(1)
 
-         allocate (atm_input%p(ip), atm_input%t(ip), atm_input%z(ip), atm_input%h2o(ip), &
-                   atm_input%ch4(ip), atm_input%co(ip), atm_input%co2(ip), stat=ierr)
+         allocate (atm_input%p(ip),  atm_input%t(ip),  atm_input%z(ip), atm_input%h2o(ip), &
+                   atm_input%ch4(ip),atm_input%co(ip), atm_input%co2(ip),&
+                   atm_input%n2o(ip),atm_input%hcl(ip),atm_input%hf(ip), stat=ierr)
          if (ierr .ne. 0) then
             write (message, *) 'ATMOSPHERE_INTERPOLATE: memory allocation error'
             ierr = ierr_all
@@ -185,9 +196,10 @@ contains
          atm_input%h2o(1:ip) = atm_in%h2o(1:ip)
          atm_input%ch4(1:ip) = atm_in%ch4(1:ip)
          atm_input%co(1:ip) = atm_in%co(1:ip)
-         if (allocated(atm_in%co2)) then
-            atm_input%co2(1:ip) = atm_in%co2(1:ip)
-         end if
+         atm_input%co2(1:ip) = atm_in%co2(1:ip)
+         atm_input%n2o(1:ip) = atm_in%n2o(1:ip)
+         atm_input%hcl(1:ip) = atm_in%hcl(1:ip)
+         atm_input%hf(1:ip) = atm_in%hf(1:ip)
       end if
 
       ninput = size(atm_input%p) - 1   !number of layers
@@ -261,16 +273,19 @@ contains
       end if
       call linterp(atm_input%p, atm_input%h2o, ninput + 1, &
                    atm_xs%p, vh2o, natm)
-      if (allocated(atm_in%co2)) then
-         call linterp(atm_input%p, atm_input%co2, ninput + 1, &
+      call linterp(atm_input%p, atm_input%co2, ninput + 1, &
                       atm_xs%p, vco2, natm)
-      else
-         vco2 = 0.d0
-      end if
       call linterp(atm_input%p, atm_input%ch4, ninput + 1, &
                    atm_xs%p, vch4, natm)
       call linterp(atm_input%p, atm_input%co, ninput + 1, &
                    atm_xs%p, vco, natm)
+      call linterp(atm_input%p, atm_input%n2o, ninput + 1, &
+                   atm_xs%p, vn2o, natm)
+      call linterp(atm_input%p, atm_input%hcl, ninput + 1, &
+                   atm_xs%p, vhcl, natm)
+      call linterp(atm_input%p, atm_input%hf, ninput + 1, &
+                   atm_xs%p, vhf, natm)
+      
       !*** Radiative transfer grid at layer boundaries
       call spline_interpol(DLOG(atm_input%p), atm_input%z, ninput + 1, &
                            DLOG(plev_rt), zlev_rt, nrt + 1, ierr)
@@ -326,7 +341,7 @@ contains
       ! This seems buggy, rE is larger at poles than equator...
       !    rE = 6378137.D0/(1.006803-0.006706*sin(lat/180.D0*Pi)*sin(lat/180.D0*Pi))
       ! This is formula from Wikipedia:
-    rE = 6.378137d6*sqrt( (1.d0-1.334395d-2*sin(lat/180.D0*Pi)*sin(lat/180.D0*Pi) )/(1.d0 - 6.694384d-3*sin(lat/180.D0*Pi)*sin(lat/180.D0*Pi)))
+      rE = 6.378137d6*sqrt( (1.d0-1.334395d-2*sin(lat/180.D0*Pi)*sin(lat/180.D0*Pi) )/(1.d0 - 6.694384d-3*sin(lat/180.D0*Pi)*sin(lat/180.D0*Pi)))
       gE = 9.80
       !*** Iterative formula taking into account dependence of geopotential height on gravity
       do i = 1, 5
@@ -352,8 +367,11 @@ contains
             dvh2o(k) = dvair(k)*vh2o(k)
             dvco2(k) = dvair(k)*vco2(k)
             dvch4(k) = dvair(k)*vch4(k)
-            dvco(k) = dvair(k)*vco(k)
+            dvco(k)  = dvair(k)*vco(k)
             dvhdo(k) = dvair(k)*vhdo(k)
+            dvn2o(k) = dvair(k)*vn2o(k)
+            dvhcl(k) = dvair(k)*vhcl(k)
+            dvhf(k)  = dvair(k)*vhf(k)
          end do
       elseif (gas_units == 2) then   ! Convert number density to partial column
          do k = 1, natm
@@ -362,6 +380,9 @@ contains
             dvch4(k) = dz_atm(k)*1.d2*vch4(k)
             dvco(k) = dz_atm(k)*1.d2*vco(k)
             dvhdo(k) = dz_atm(k)*1.d2*vhdo(k)
+            dvn2o(k) = dz_atm(k)*1.d2*vn2o(k)
+            dvhcl(k) = dz_atm(k)*1.d2*vhcl(k)
+            dvhf(k) = dz_atm(k)*1.d2*vhf(k)
          end do
          !*** Same as above, but use partial column of H2O instead of VMR
          do k = 1, natm
@@ -413,8 +434,9 @@ contains
                      call writelog('WARNING: NEGATIVE CO VMR, set to zero', 5)
                      win(n)%dv_x(k, i) = 0.d0
                   else
-                     win(n)%dv_x(k, i) = dvco(k)
-                  end if
+                      win(n)%dv_x(k, i) = dvco2(k)/4000. ! Approximate CO profile from CO2
+                     call writelog('WARNING: APRIORI CO VMR set to climatological value.', 5)
+                 end if
                end do
             else if (abs(win_ini(n)%type_x(i)) == 6 .or. &
                      (abs(win_ini(n)%type_x(i)) >= 600 .and. abs(win_ini(n)%type_x(i)) < 699)) then
@@ -436,6 +458,39 @@ contains
                      win(n)%dv_x(k, i) = 0.d0
                   else
                      win(n)%dv_x(k, i) = dvhdo(k)
+                  end if
+               end do
+            else if (abs(win_ini(n)%type_x(i)) == 4 .or. &
+                     (abs(win_ini(n)%type_x(i)) >= 400 .and. abs(win_ini(n)%type_x(i)) < 499)) then
+               do k = 1, natm
+                  if (dvn2o(k) < 0.d0) then
+                     call writelog('WARNING: NEGATIVE N2O VMR, set to zero', 5)
+                     win(n)%dv_x(k, i) = 0.d0
+                  else
+                     win(n)%dv_x(k, i) = dvch4(k)/6. ! Approximate N2O profile as 1/6 of CH4 profile
+                     call writelog('WARNING: APRIORI N2O VMR set to climatological value.', 5)
+                  end if
+               end do
+           else if (abs(win_ini(n)%type_x(i)) == 14 .or. &
+                     (abs(win_ini(n)%type_x(i)) >= 1400 .and. abs(win_ini(n)%type_x(i)) < 1499)) then
+               do k = 1, natm
+                  if (dvhf(k) < 0.d0) then
+                     call writelog('WARNING: NEGATIVE HF VMR, set to zero', 5)
+                     win(n)%dv_x(k, i) = 0.d0
+                  else
+                     win(n)%dv_x(k, i) = 5.E16/natm ! Typical volcanic HF column, Butz et al., AMT, 2017, https://doi.org/10.5194/amt-10-1-2017
+                     call writelog('WARNING: APRIORI HF VMR set to climatological value.', 5)
+                  end if
+               end do
+          else if (abs(win_ini(n)%type_x(i)) == 15 .or. &
+                     (abs(win_ini(n)%type_x(i)) >= 1500 .and. abs(win_ini(n)%type_x(i)) < 1599)) then
+               do k = 1, natm
+                  if (dvhcl(k) < 0.d0) then
+                     call writelog('WARNING: NEGATIVE HCl VMR, set to zero', 5)
+                     win(n)%dv_x(k, i) = 0.d0
+                  else
+                     win(n)%dv_x(k, i) = 2.E17/natm ! Typical volcanic HCl column, Butz et al., AMT, 2017, https://doi.org/10.5194/amt-10-1-2017
+                     call writelog('WARNING: APRIORI HCl VMR set to climatological value.', 5)
                   end if
                end do
             else
