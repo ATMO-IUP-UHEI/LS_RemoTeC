@@ -49,24 +49,25 @@ contains
       integer :: nwin
       integer :: k, l, n, i, j, i1, i2, length, now(3), io, nstate, ntype_target, ntype_target_in
       character(299) :: ncfile
-      character(6):: runidstring
+      character(6):: runidstring, str
       real(double) :: scale, chi2
       real(double), dimension(:), allocatable :: x, x_err, wave_start_in, wave_stop_in, alb_in, ot_in, cot_in
-      real(double), dimension(11) :: x_in
-      integer, dimension(11) :: x_in_flag
-      character(99), dimension(11) :: x_in_name, x_in_unit
+      real(double), dimension(15) :: x_in
+      integer, dimension(15) :: x_in_flag
+      character(99), dimension(15) :: x_in_name, x_in_unit
       logical :: exst
       character(99) :: unit
       character(99), dimension(:), allocatable :: x_name, x_unit
       integer :: sx, sy
-      integer :: ncid, ierr, stat, ngroup, dimid_nobs, dimid_wave, lastindex, dimid_time, nwave
-      integer :: sza_id, vza_id, xair_id, psf_id, lat_id, lon_id, time_id, x_id, y_id
-      integer :: cf_id, chi_id, dfs_id, dfss_id, eid_id, it_id
-      integer, dimension(:), allocatable :: grpid, wave_id, ot_id, cot_id, alb_id, otin_id, cotin_id, albin_id, tc_id, dfst_id, tcerr_id, tcin_id
+      integer :: ncid, ierr, stat, ngroup, dimid_nobs, dimid_wave, lastindex, dimid_time, nwave, dimid_state
+      integer :: sza_id, vza_id, xair_id, psf_id, tsf_id, zsf_id, lat_id, lon_id, time_id, x_id, y_id
+      integer :: cf_id, chi_id, dfs_id, dfss_id, eid_id, it_id, xgrp_id
+      integer, dimension(:), allocatable :: grpid, wave_id, ot_id, cot_id, alb_id, otin_id, cotin_id, albin_id
+      integer, dimension(:), allocatable :: tc_id, dfst_id, tcerr_id, tcin_id, x_state_id, s_state_id, x_apr_id
       character*1 :: ch
       character(stringlen) :: group_name, index_info
       real(double) :: x_air
-      real(double) :: psf
+      real(double) :: psf, tsf, zsf
       !-----------------------------------------------------------
 
       nwin = size(win_ini)
@@ -89,6 +90,10 @@ contains
       x_in_name(9) = "so2"
       x_in_name(10) = "no2"
       x_in_name(11) = "nh3"
+      x_in_name(12) = "hno3"
+      x_in_name(13) = "oh"
+      x_in_name(14) = "hf"
+      x_in_name(15) = "hcl"
 
       !---------------------------------------------------------------------------------
 
@@ -119,6 +124,7 @@ contains
       end if
 
       ntype_target = size(retrieval_output%type_x_target)
+      ntype_target = size(retrieval_output%type_x_target)
       nstate = size(retrieval_output%x_state(:, 1))
 
       if (allocated(x)) deallocate (x)
@@ -140,6 +146,9 @@ contains
          elseif (abs(retrieval_output%type_x_target(j)) == 2) then
             scale = 1.E6
             k = 2
+         elseif (abs(retrieval_output%type_x_target(j)) == 4) then
+            scale = 1.E9
+            k = 4
          elseif (abs(retrieval_output%type_x_target(j)) == 5) then
             scale = 1.E6
             k = 5
@@ -158,6 +167,9 @@ contains
          elseif (abs(retrieval_output%type_x_target(j)) >= 200 .and. abs(retrieval_output%type_x_target(j)) <= 299) then
             scale = 1.E6
             k = 2
+         elseif (abs(retrieval_output%type_x_target(j)) >= 400 .and. abs(retrieval_output%type_x_target(j)) <= 499) then
+            scale = 1.E9
+            k = 4
          elseif (abs(retrieval_output%type_x_target(j)) >= 500 .and. abs(retrieval_output%type_x_target(j)) <= 599) then
             scale = 1.E6
             k = 5
@@ -174,6 +186,10 @@ contains
 
          !*** surface pressure
          psf = retrieval_output%p(nlay + 1)
+         !*** surface temperature
+         tsf = retrieval_output%t(nlay + 1)
+         !*** surface height
+         zsf = retrieval_output%z(nlay + 1)
 
          if (scale == 1.) then
             x_unit(j) = '1'
@@ -269,7 +285,13 @@ contains
          if (allocated(tcin_id)) deallocate (tcin_id)
          allocate(tcin_id(ntype_target_in))
       end if
-
+      if (allocated(x_state_id)) deallocate (x_state_id)
+      allocate(x_state_id(nstate))
+      if (allocated(s_state_id)) deallocate (s_state_id)
+      allocate(s_state_id(nstate))
+      if (allocated(x_apr_id)) deallocate (x_apr_id)
+      allocate(x_apr_id(nstate))
+      
       inquire (FILE=trim(ncfile), EXIST=exst)
       if (.not. exst) then
 
@@ -278,12 +300,13 @@ contains
 
          !*** Unlimited dimension for number of observations
          call check(nf90_def_dim(ncid, "nobs", nf90_unlimited, dimid_nobs), stat)
-
+         
          !*** Indexdata
          call check(nf90_def_var(ncid, "x", nf90_int, dimid_nobs, x_id), stat)
          call check(nf90_def_var(ncid, "y", nf90_int, dimid_nobs, y_id), stat)
 
          !*** Timedata
+         call check(nf90_def_dim(ncid, "ntime", 1, dimid_time), stat)
          call check(nf90_def_var(ncid, "time", nf90_int, dimid_time, time_id), stat)
          call check(nf90_put_var(ncid, time_id, meta%seconds_since_reference), stat)
          call check(nf90_put_att(ncid, time_id, "long_name", "seconds since reference"), stat)
@@ -316,6 +339,16 @@ contains
          call check(nf90_def_var(ncid, "surface_pressure", nf90_float, dimid_nobs, psf_id), stat)
          call check(nf90_put_att(ncid, psf_id, "long_name", "Surface pressure"), stat)
          call check(nf90_put_att(ncid, psf_id, "units", "hPa"), stat)
+
+         !*** Surface Temperature
+         call check(nf90_def_var(ncid, "surface_temperature", nf90_float, dimid_nobs, tsf_id), stat)
+         call check(nf90_put_att(ncid, tsf_id, "long_name", "Surface pressure"), stat)
+         call check(nf90_put_att(ncid, tsf_id, "units", "K"), stat)
+
+         !*** Surface Height
+         call check(nf90_def_var(ncid, "surface_height", nf90_float, dimid_nobs, zsf_id), stat)
+         call check(nf90_put_att(ncid, zsf_id, "long_name", "Surface pressure"), stat)
+         call check(nf90_put_att(ncid, zsf_id, "units", "m"), stat)
 
          !*** Quality flags
          call check(nf90_def_var(ncid, "convergence", nf90_int, dimid_nobs, cf_id), stat)
@@ -350,7 +383,7 @@ contains
             call check(nf90_def_var(ncid, trim('dfst_')//trim(x_name(n)), nf90_float, dimid_nobs, dfst_id(n)), stat)
             call check(nf90_put_att(ncid, dfst_id(n), "long_name", "Degrees of freedom for target retrieval"), stat)
          end do
-
+         
          if (synthetic_input_flag .eq. 1) then
             !*** Input gas concentrations
             n = 1
@@ -364,6 +397,24 @@ contains
             end do
          end if
 
+         !*** Create a group for state vector
+         group_name = 'X_STATE'
+         call check(nf90_def_grp(ncid, trim(group_name), xgrp_id), stat)!*** State vector, standard deviations and priors
+         call check(nf90_def_dim(xgrp_id, "n_state", nstate, dimid_state), stat)
+         do n = 1, nstate
+            write(str, '(I4.4)') n 
+            
+            call check(nf90_def_var(xgrp_id, trim(retrieval_output%x_state_name(n)), nf90_float, dimid_nobs, x_state_id(n)), stat)
+            call check(nf90_put_att(xgrp_id, x_state_id(n), "long_name", "State vector element "//str), stat)
+            
+            call check(nf90_def_var(xgrp_id, trim(retrieval_output%x_state_name(n))//trim('_STD'), nf90_float, dimid_nobs, s_state_id(n)), stat)
+            call check(nf90_put_att(xgrp_id, s_state_id(n), "long_name", "State vector element standard deviation "//str), stat)
+            
+            call check(nf90_def_var(xgrp_id, trim(retrieval_output%x_state_name(n))//trim('_APR'), nf90_float, dimid_nobs, x_apr_id(n)), stat)
+            call check(nf90_put_att(xgrp_id, x_apr_id(n), "long_name", "State vector element a priori "//str), stat)
+            
+         end do
+
          do n = 1, nwin
             nwave = measurement(n)%nwave
             !*** Create a group for each spectral window
@@ -375,9 +426,9 @@ contains
             call check(nf90_def_dim(grpid(n), "nwave", nwave, dimid_wave), stat)
 
             !*** Define the variables
-            call check(nf90_def_var(grpid(n), "wavelength", nf90_float, dimid_wave, wave_id(n)), stat)
-            call check(nf90_put_att(grpid(n), wave_id(n), "long_name", "Wavelength grid of spectrum"), stat)
-            call check(nf90_put_att(grpid(n), wave_id(n), "units", "nm"), stat)
+            !call check(nf90_def_var(grpid(n), "wavelength", nf90_float, dimid_wave, wave_id(n)), stat)
+            !call check(nf90_put_att(grpid(n), wave_id(n), "long_name", "Wavelength grid of spectrum"), stat)
+            !call check(nf90_put_att(grpid(n), wave_id(n), "units", "nm"), stat)
 
             call check(nf90_def_var(grpid(n), "ot", nf90_float, dimid_nobs, ot_id(n)), stat)
             call check(nf90_put_att(grpid(n), ot_id(n), "long_name", "Retrieved total optical thickness"), stat)
@@ -387,7 +438,7 @@ contains
 
             call check(nf90_def_var(grpid(n), "alb", nf90_float, dimid_nobs, alb_id(n)), stat)
             call check(nf90_put_att(grpid(n), alb_id(n), "long_name", "Retrieved surface albedo"), stat)
-
+ 
             if (synthetic_input_flag .eq. 1) then
                call check(nf90_def_var(grpid(n), "ot_inp", nf90_float, dimid_nobs, otin_id(n)), stat)
                call check(nf90_put_att(grpid(n), otin_id(n), "long_name", "Total optical thickness used to simulate spectrum"), stat)
@@ -400,14 +451,13 @@ contains
             end if
 
             !*** write spectral grid
-            call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
+            !call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
 
          end do
 
          lastindex = 1
 
-         !*** GET VARIABLE IDs
-      else
+       else
 
          !*** Open the netCDF file and append
          call check(nf90_open(trim(ncfile), nf90_write, ncid), stat)
@@ -426,6 +476,10 @@ contains
 
          !*** Surface Pressure
          call check(nf90_inq_varid(ncid, "surface_pressure", psf_id), stat)
+         !*** Surface Temperature
+         call check(nf90_inq_varid(ncid, "surface_temperature", tsf_id), stat)
+         !*** Surface Height
+         call check(nf90_inq_varid(ncid, "surface_height", zsf_id), stat)
 
          !*** Geodata
          call check(nf90_inq_varid(ncid, "latitude", lat_id), stat)
@@ -448,10 +502,18 @@ contains
             call check(nf90_inq_varid(ncid, trim("dfst_")//trim(x_name(n)), dfst_id(n)), stat)
          end do
 
+         !*** State vector, standard deviations and priors
+         call check(nf90_inq_ncid(ncid, 'X_STATE', xgrp_id), stat)
+         do n = 1, nstate
+            call check(nf90_inq_varid(xgrp_id, trim(retrieval_output%x_state_name(n)), x_state_id(n)), stat)
+            call check(nf90_inq_varid(xgrp_id, trim(retrieval_output%x_state_name(n))//trim('_STD'), s_state_id(n)), stat)
+            call check(nf90_inq_varid(xgrp_id, trim(retrieval_output%x_state_name(n))//trim('_APR'), x_apr_id(n)), stat)
+          end do
+
          if (synthetic_input_flag .eq. 1) then
             !*** Input gas concentrations
             n = 1
-            do k = 1, 11
+            do k = 1, 15
                if (x_in_flag(k) .EQ. 1) then
                   call check(nf90_inq_varid(ncid, trim('x_')//trim(x_in_name(k))//trim('_inp'), tcin_id(n)), stat)
                   n = n + 1
@@ -460,10 +522,10 @@ contains
          end if
 
          !*** Spectrally resolved data
-         !*** Get group ID's
-         call check(nf90_inq_grps(ncid, ngroup, grpid), stat)
-
-         do n = 1, ngroup
+         do n = 1, nwin
+            write (ch, '(i1.1)') n
+            group_name = 'BAND'//ch
+            call check(nf90_inq_ncid(ncid, trim(group_name), grpid(n)), stat)
             call check(nf90_inq_varid(grpid(n), "ot", ot_id(n)), stat)
             call check(nf90_inq_varid(grpid(n), "cot", cot_id(n)), stat)
             call check(nf90_inq_varid(grpid(n), "alb", alb_id(n)), stat)
@@ -500,6 +562,10 @@ contains
 
       !*** Surface Pressure
       call check(nf90_put_var(ncid, psf_id, psf, start=(/lastindex/)), stat)
+      !*** Surface Pressure
+      call check(nf90_put_var(ncid, tsf_id, tsf, start=(/lastindex/)), stat)
+      !*** Surface Pressure
+      call check(nf90_put_var(ncid, zsf_id, zsf, start=(/lastindex/)), stat)
 
       !*** Quality flags
       call check(nf90_put_var(ncid, cf_id, retrieval_output%convergence, start=(/lastindex/)), stat)
@@ -518,6 +584,13 @@ contains
          call check(nf90_put_var(ncid, dfst_id(n), retrieval_output%dfs_target(n), start=(/lastindex/)), stat)
       end do
 
+      !*** State vector, standard deviations and priors
+      do n = 1, nstate
+         call check(nf90_put_var(xgrp_id, x_state_id(n), retrieval_output%x_state(n,retrieval_output%iter), start=(/lastindex/)), stat)
+         call check(nf90_put_var(xgrp_id, s_state_id(n), DSQRT(retrieval_output%s_state(n,n)), start=(/lastindex/)), stat)
+         call check(nf90_put_var(xgrp_id, x_apr_id(n), retrieval_output%x_apr(n), start=(/lastindex/)), stat)
+      end do
+     
       if (synthetic_input_flag .eq. 1) then
          !*** Input gas concentrations
          n = 1

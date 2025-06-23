@@ -468,7 +468,6 @@ contains
                      win(n)%dv_x(k, i) = 0.d0
                   else
                      win(n)%dv_x(k, i) = dvch4(k)/6. ! Approximate N2O profile as 1/6 of CH4 profile
-                     call writelog('WARNING: APRIORI N2O VMR set to climatological value.', 5)
                   end if
                end do
            else if (abs(win_ini(n)%type_x(i)) == 14 .or. &
@@ -479,7 +478,6 @@ contains
                      win(n)%dv_x(k, i) = 0.d0
                   else
                      win(n)%dv_x(k, i) = 5.E16/natm ! Typical volcanic HF column, Butz et al., AMT, 2017, https://doi.org/10.5194/amt-10-1-2017
-                     call writelog('WARNING: APRIORI HF VMR set to climatological value.', 5)
                   end if
                end do
           else if (abs(win_ini(n)%type_x(i)) == 15 .or. &
@@ -490,7 +488,6 @@ contains
                      win(n)%dv_x(k, i) = 0.d0
                   else
                      win(n)%dv_x(k, i) = 2.E17/natm ! Typical volcanic HCl column, Butz et al., AMT, 2017, https://doi.org/10.5194/amt-10-1-2017
-                     call writelog('WARNING: APRIORI HCl VMR set to climatological value.', 5)
                   end if
                end do
             else

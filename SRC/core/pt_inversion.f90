@@ -575,7 +575,7 @@ module pt_regularization_module
             if(i>nx-naer) then
                Boundary_Flag=1
             else
-               Boundary_Flag=2
+               Boundary_Flag=0
             endif
          elseif(x_i(i)>upbd(i)) then
 !	    if(outputflag >= 2) then
@@ -586,7 +586,7 @@ module pt_regularization_module
             if(i>nx-naer) then
                Boundary_Flag = 1
             else
-               Boundary_Flag = 2
+               Boundary_Flag = 0
             endif
 	 endif
       enddo

@@ -28,48 +28,61 @@ module profile_inversion_module
   !------------------------------------------------------------------------------
   !> Output data of retrieval algorithm
   type :: retrieval_data
-     real(double), dimension(:,:), allocatable :: x_state
-     real(double), dimension(:), allocatable :: dvair
-     real(double), dimension(:,:), allocatable :: ak
-     real(double), dimension(:), allocatable :: x_apr
-     real(double), dimension(:, :), allocatable :: cf
-     real(double), dimension(:,:), allocatable :: s_state
+   !--- State vector and related arrays
+   real(double), allocatable :: x_state(:,:)         ! State vector over iterations
+   real(double), allocatable :: dvair(:)             ! Air column per layer
+   real(double), allocatable :: ak(:,:)              ! Averaging kernel matrix
+   real(double), allocatable :: x_apr(:)             ! A priori state vector
+   real(double), allocatable :: cf(:,:)              ! Gain matrix
+   real(double), allocatable :: s_state(:,:)         ! Posterior covariance matrix
 
-     real(double), dimension(:), allocatable :: chi2_window    ! chi2 per window
-     real(double), dimension(:), allocatable :: ot
-     real(double), dimension(:), allocatable :: cot
-     real(double), dimension(:), allocatable :: albedo
-     real(double), dimension(:), allocatable :: albedo_err
-     real(double), dimension(:), allocatable :: spectral_shift ! Spectral shift [nm]
-     real(double) :: Fs                                        ! Fluorescence intensity
+   !--- Window-dependent output
+   real(double), allocatable :: chi2_window(:)       ! Chi2 per window
+   real(double), allocatable :: ot(:)                ! Optical thickness per window
+   real(double), allocatable :: cot(:)               ! Cirrus optical thickness per window
+   real(double), allocatable :: albedo(:)            ! Retrieved albedo per window
+   real(double), allocatable :: albedo_err(:)        ! Albedo uncertainty per window
+   real(double), allocatable :: spectral_shift(:)    ! Spectral shift [nm] per window
 
-     real(double), dimension(:), allocatable :: spectrum_mod      ! Modeled relfectance/radiance
-     real(double), dimension(:), allocatable :: spectrum_meas     ! Measured reflectance/radiance
-     real(double), dimension(:), allocatable :: spectrum_meas_cov ! Covariance of measured reflectance/radiance
-     real(double), dimension(:), allocatable :: wavelength        ! Wavelength for reflectance/radiance
+   !--- Fluorescence
+   real(double) :: Fs                                ! Fluorescence intensity
 
-     integer, dimension(:), allocatable :: type_x_target       ! Target absorbers
-     character*25, dimension(:), allocatable :: x_state_name   ! State vector element identifier
+   !--- Spectral output
+   real(double), allocatable :: spectrum_mod(:)      ! Modeled reflectance/radiance
+   real(double), allocatable :: spectrum_meas(:)     ! Measured reflectance/radiance
+   real(double), allocatable :: spectrum_meas_cov(:) ! Covariance of measured reflectance/radiance
+   real(double), allocatable :: wavelength(:)        ! Wavelength grid
 
-     integer, dimension(:), allocatable :: ny   !Number of spectral points used for retrieval per band
+   !--- Target absorber and state vector info
+   integer, allocatable :: type_x_target(:)          ! Target absorber indices
+   character(len=25), allocatable :: x_state_name(:) ! State vector element identifiers
 
-     real(double) :: dfs
-     real(double), dimension(:), allocatable :: dfs_target
-     real(double) :: dfs_scat
-     real(double), dimension(:), allocatable :: chi2
-     real(double), dimension(:), allocatable :: lambda
-     real(double), dimension(:), allocatable :: vza, raa ! viewing zenith angle, relative azimuth angle
+   !--- Retrieval window info
+   integer, allocatable :: ny(:)                     ! Number of spectral points per window
 
-     real(double) :: air_col_old
-     real(double), dimension(:), allocatable :: p, z, t
-     real(double), dimension(:,:), allocatable :: s_apr
-     real(double) :: rms
+   !--- Degrees of freedom and diagnostics
+   real(double) :: dfs                               ! Total degrees of freedom
+   real(double), allocatable :: dfs_target(:)        ! Degrees of freedom per target
+   real(double) :: dfs_scat                          ! Degrees of freedom for scattering
+   real(double), allocatable :: chi2(:)              ! Chi2 per iteration (unreduced)
+   real(double), allocatable :: lambda(:)            ! LM parameter per iteration
+   real(double), allocatable :: vza(:)               ! Viewing zenith angle per window
+   real(double), allocatable :: raa(:)               ! Relative azimuth angle per window
 
-     integer :: convergence
-     integer :: iter
-     integer :: error_id
+   !--- Miscellaneous output
+   real(double) :: air_col_old                       ! Air column from previous iteration
+   real(double), allocatable :: p(:)                 ! Pressure profile (optional)
+   real(double), allocatable :: z(:)                 ! Altitude profile (optional)
+   real(double), allocatable :: t(:)                 ! Temperature profile (optional)
+   real(double), allocatable :: s_apr(:,:)           ! A priori covariance matrix
+   real(double) :: rms                               ! Root mean square residual
 
-     character(stringlen) :: iterflag
+   !--- Iteration and convergence info
+   integer :: convergence                            ! Convergence flag (1=converged, 0=not)
+   integer :: iter                                   ! Number of iterations performed
+   integer :: error_id                               ! Error identifier
+
+   character(stringlen) :: iterflag                  ! Iteration status flag
 
   end type retrieval_data
 
@@ -88,88 +101,87 @@ contains
        absorb, atm_rt, atm_xs, dvair, &
        response, &
        win_ini, win, aerosol, retrieval_output, ierr)
-    type(Mie_lut), intent(in) :: aero_lut
-    type(cirrus_table), intent(in) :: cirrus_lut
-    type(settings_flags), intent(in) :: flag
-    integer, intent(in) :: glintflag, nlay
-    real(double), intent(in) :: FS_apr, wspeed
-    type(absorbers), intent(in) :: absorb
-    type(atmosphere), intent(in) :: atm_rt
-    type(instrument_response), dimension(:), intent(in) :: response
-    type(window_ini), dimension(:), intent(in) :: win_ini
-    !*** Input/output
-    type(atmosphere), intent(inout) :: atm_xs
-    real(double), dimension(:), intent(inout) :: dvair      ! Partial air column, subject to change in O2 retrieval (Dim: natm)
-    type(window_spectrum), dimension(:), intent(inout) :: win
-    type(aero), dimension(:), intent(inout) :: aerosol
-    !*** Output
-    type(retrieval_data), intent(out) :: retrieval_output
-    integer, intent(out) :: ierr
-    !*** local variables
-    integer :: ExitXSFlag, natm, nwin, ntype_aer
-    integer :: i, j, l, n, SVDflag, nlsq, i1, i2
-    integer :: aer_red, reduction, reduce_i, reduce_j
-    integer :: ExitFlag
-    integer, parameter :: maxiter = 30, miniter = 5
-    integer :: iter, convergence, slowconvflag
-    real(double) :: residual
-    real(double) :: state_stop
-    real(double) :: lambda
-    real(double), parameter ::  minaot = 1.D-20, mincot = 1.D-20   ! HH: from GOSAT (used to be 1.d-3)
-    real(double) :: chi2old
-    real(double) :: chi2min
-    real(double) :: dfs_min
-    integer, dimension(:),allocatable :: red_positions
-    real(double), dimension(:), allocatable :: x_state_old           ! State vector previous it
-    real(double), dimension(:), allocatable :: x_state_min           ! State vector minimum chi2
-    real(double), dimension(:), allocatable :: upperx                ! State vector upper boundaries
-    real(double), dimension(:), allocatable :: lowerx                ! State vector lower boundaries
-    real(double), dimension(:,:), allocatable :: ak_min              ! Averaging kernel with minimum chi2
-    real(double), dimension(:,:),allocatable :: call_derivatives_lo  ! Substitution array for derivatives_lo
-    real(double), dimension(:),allocatable :: call_x_state           ! Substitution array for x_state
-    real(double), dimension(:,:),allocatable :: call_s_state         ! Substitution array for s_state
-    real(double), dimension(:),allocatable :: call_x_apr             ! Substitution array for x_apr
-    real(double), dimension(:,:),allocatable :: call_ak              ! Substitution array for ak
-    real(double), dimension(:,:),allocatable :: call_cf              ! Substitution array for cf
-    real(double), dimension(:),allocatable :: call_upperx            ! Substitution array for upperx
-    real(double), dimension(:),allocatable :: call_lowerx            ! Substitution array for lowerx
-    real(double), dimension(:,:), allocatable :: reflectance_hi
-    real(double), dimension(:, :), allocatable :: derivatives_lo     ! Modelled derivatives of the Log of the reflectance concatenated over all windows
-    real(double), dimension(:,:), allocatable :: derivatives_lo_old  ! Modelled derivatives of the Log of previous it reflectance concatenated over all windows
-    real(double), dimension(sum(win(:)%nwave_lo)) :: regpix          ! Array of pixels to be regularized
-    integer, dimension(:), allocatable :: regskill                   ! Array of skill-IDs for regularization
-    real(double), dimension(:), allocatable :: ymeas, ymod, ycov, ymod_old, ycov_unscaled
-    real(double) :: degfreedom                            ! Degrees of freedom
-    real(double) :: dfs_scat                              ! Degrees of freedom for scattering parameters
-    real(double), dimension(:),allocatable :: dfs_target  ! Degrees of freedom for target vertical profiles
-    type(derivatives), dimension(:), allocatable :: deriv_hi
-    integer, dimension(:), allocatable :: nder
-    real(double) :: chi2, rms
-    real(double) :: chi2_final, covmax
-    real(double) :: s1, s2, s3 				!rrae: Multiplicative stokes coefficients
-    real(double), dimension(:), allocatable :: covrm
-    integer :: error_ID, nwave_lo
-    real(double), dimension(:), allocatable :: x_state    ! State vector to be retrieved (Dim: nstate)
-    real(double), dimension(:), allocatable :: x_apr      ! Apriori/initial guess vector (Dim: nstate)
-    real(double), dimension(:,:), allocatable :: s_state  ! State vector covariance matrix (Dim: nstate,nstate)
-    real(double), dimension(:,:), allocatable :: s_apr
-    real(double), dimension(:,:), allocatable :: s_y      !Diagonal measurement covariance matrx (Dim: nwave_lo,nwave_lo)
-    real(double), dimension(:,:), allocatable :: ak       ! Averaging kernel matrix (Dim: nstate,nstate)
-    real(double), dimension(:,:), allocatable :: cf       ! Contribution function matrix (Dim: nstate,nwave_lo)
-    real(double), dimension(:,:), allocatable :: cf_min   ! Contribution function matrix minimum chi2
-    real(double), dimension(:), allocatable :: play_old   ! Pressure, layer center (Dim: natm)
-    real(double), dimension(:), allocatable :: tlay_old   ! Temperature, layer center (Dim: natm)
-    real(double), dimension(:), allocatable :: dvair_old  ! Partial air column (Dim: natm)
-    real(double), dimension(:), allocatable ::  vmr_h2o
-    integer :: MinAOTFlag       ! No aerosol in retrieval if low aerosol optical thickness
-    integer :: MinCOTFlag       ! No cirri in retrieval if low cirrus optical thickness
-    integer:: maxotflag
-    integer :: boundary_flag
-    integer :: naux, nstate, naer, off, k, io
-    character(stringlen) :: message
-    character*25, dimension(:), allocatable :: x_state_name  ! State vector element identifier
-    character*2 :: ch
-    character(stringlen) :: iterflag                        ! Iteration anomaly flag
+  !=====================================================================
+  ! Input variables
+  !=====================================================================
+    type(Mie_lut),                 intent(in)    :: aero_lut
+    type(cirrus_table),            intent(in)    :: cirrus_lut
+    type(settings_flags),          intent(in)    :: flag
+    type(absorbers),               intent(in)    :: absorb
+    type(atmosphere),              intent(in)    :: atm_rt
+    type(instrument_response),     intent(in)    :: response(:)
+    type(window_ini),              intent(in)    :: win_ini(:)
+
+    integer,                       intent(in)    :: glintflag, nlay
+    real(double),                  intent(in)    :: FS_apr, wspeed
+
+  !=====================================================================
+  ! Input/Output variables
+  !=====================================================================
+    type(atmosphere),              intent(inout) :: atm_xs
+    real(double),                  intent(inout) :: dvair(:)
+    type(window_spectrum),         intent(inout) :: win(:)
+    type(aero),                    intent(inout) :: aerosol(:)
+
+  !=====================================================================
+  ! Output variables 
+  !=====================================================================
+    type(retrieval_data),          intent(out)   :: retrieval_output
+    integer,                       intent(out)   :: ierr
+
+  !=====================================================================
+  ! Local variables
+  !=====================================================================
+    !--- Scalars
+    integer                                     :: ExitXSFlag, natm, nwin, ntype_aer
+    integer                                     :: i, j, l, n, SVDflag, nlsq, i1, i2
+    integer                                     :: aer_red, reduction, reduce_i, reduce_j
+    integer                                     :: ExitFlag, iter, convergence, slowconvflag
+    integer                                     :: error_ID, nwave_lo
+    integer                                     :: MinAOTFlag, MinCOTFlag, maxotflag, boundary_flag
+    integer                                     :: naux, nstate, naer, off, k, io
+
+    real(double)                                :: residual, state_stop, lambda
+    real(double)                                :: chi2old, chi2min, dfs_min
+    real(double)                                :: degfreedom, dfs_scat
+    real(double)                                :: chi2, rms, chi2_final, covmax
+    real(double)                                :: s1, s2, s3
+
+    !--- Parameters
+    integer, parameter                          :: maxiter = 30, miniter = 5
+    real(double), parameter                     :: minaot = 1.D-20, mincot = 1.D-20
+
+    !--- Allocatable arrays
+    integer, allocatable                        :: red_positions(:)
+    integer, allocatable                        :: regskill(:)
+    integer, allocatable                        :: nder(:)
+
+    real(double), allocatable                   :: x_state_old(:), x_state_min(:)
+    real(double), allocatable                   :: upperx(:), lowerx(:)
+    real(double), allocatable                   :: call_x_state(:)
+    real(double), allocatable                   :: call_upperx(:), call_lowerx(:)
+    real(double), allocatable                   :: call_x_apr(:), dfs_target(:)
+    real(double), allocatable                   :: ymeas(:), ymod(:), ycov(:)
+    real(double), allocatable                   :: ymod_old(:), ycov_unscaled(:)
+    real(double), allocatable                   :: covrm(:), vmr_h2o(:)
+    real(double), allocatable                   :: x_state(:), x_apr(:)
+    real(double), allocatable                   :: play_old(:), tlay_old(:), dvair_old(:)
+
+    real(double), allocatable                   :: s_state(:,:), s_apr(:,:), s_y(:,:)
+    real(double), allocatable                   :: ak(:,:), cf(:,:), cf_min(:,:)
+    real(double), allocatable                   :: ak_min(:,:), reflectance_hi(:,:)
+    real(double), allocatable                   :: call_s_state(:,:), call_derivatives_lo(:,:)
+    real(double), allocatable                   :: call_ak(:,:), call_cf(:,:)
+    real(double), allocatable                   :: derivatives_lo(:,:), derivatives_lo_old(:,:)
+
+    real(double), dimension(sum(win(:)%nwave_lo)) :: regpix
+
+    type(derivatives), allocatable              :: deriv_hi(:)
+
+    !--- Characters
+    character(stringlen)                        :: message, iterflag
+    character(len=25), allocatable              :: x_state_name(:)
+    character(len=2)                            :: ch
     !---------------------------------------------------------------------------------------------------------
     if(flag%output >= 2) then
        write(message, '(a)') '*** Start of profile_inversion ***'
@@ -718,7 +730,7 @@ contains
              ExitFlag=1
           endif
        endif
-
+       
        !*** Write screen/log output
        if(flag%output >=2) then
           write(message,'(X,A,5X,I2.2)') 'It#:',iter
