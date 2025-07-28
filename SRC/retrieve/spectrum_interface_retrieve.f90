@@ -62,7 +62,6 @@ contains
       i = INDEX(index_info, 'Y')
       read (index_info(i + 1:i + 6), '(I6)') sy
 
-      print*, "awful, awful hack. line_number is carried all the way through remotec."
       line_number = sx
 
       if (outputflag >= 2) then
