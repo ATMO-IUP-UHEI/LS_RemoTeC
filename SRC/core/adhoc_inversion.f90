@@ -203,16 +203,16 @@ contains
       yres = ymeas - ymod
 
       !*** Get inverse of measurement covariance matrix
-      print*, "DEVELOPMENT: GET INVERSE OF COVARIANCE MATRIX"
+      ! print*, "DEVELOPMENT: GET INVERSE OF COVARIANCE MATRIX"
       i = 1
       if (i .eq. 0) then
-         print*, "CALCULATE COV_INV FROM DIAGONAL s_y_vector"
+         ! print*, "CALCULATE COV_INV FROM DIAGONAL s_y_vector"
          s_y_inv = 0.
          do l = 1, ny
             s_y_inv(l, l) = 1./s_y_vector(l)
          end do  ! loop over l
       else if (i .eq. 1) then
-         print*, "USE HARDCODED FILE FOR COV_INV"
+         ! print*, "USE HARDCODED FILE FOR COV_INV"
          call read_nc_s_y_inv("CONTRL_OUT/MTF_OUT_DATA.nc", s_y_inv, ny, line_number)
       else
          stop
@@ -360,35 +360,48 @@ contains
 
       call check(nf90_close(ncid), ierr)
 
-      ! strong bands + weak bands:
+      ! strong bands + weak bands: (strong band may be one longer due to 2400 nm channel drifting)
       ! co2: 12 + 19 = 31
       ! ch4: 35 + 19 = 54
       ! remotec for both bands should have 3 windows with
       ! 12 + 35 + 19 = 66
       if (n_co2 .eq. 12 .and. n_ch4 .eq. 35 .and. ny .eq. 47) then
-         print*, "using strong bands"
+         ! print*, "using strong bands"
          cov_inv_y = 0
          cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
          cov_inv_y(13:47, 13:47) = cov_inv_ch4(1:35, 1:35)
+      else if (n_co2 .eq. 12 .and. n_ch4 .eq. 36 .and. ny .eq. 48) then
+         ! print*, "using strong bands with drifted 2400 nm channel"
+         cov_inv_y = 0
+         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
+         cov_inv_y(13:48, 13:48) = cov_inv_ch4(1:36, 1:36)
       else if (n_co2 .eq. 31 .and. n_ch4 .eq. 54 .and. ny .eq. 66) then
-         print*, "using both bands"
+         ! print*, "using both bands"
          cov_inv_y = 0
          cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
          cov_inv_y(13:47, 13:47) = cov_inv_ch4(1:35, 1:35)
          cov_inv_y(48:66, 48:66) = cov_inv_co2(13:31, 13:31)
+      else if (n_co2 .eq. 31 .and. n_ch4 .eq. 55 .and. ny .eq. 67) then
+         ! print*, "using both bands with drifted 2400 nm channel"
+         cov_inv_y = 0
+         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
+         cov_inv_y(13:48, 13:48) = cov_inv_ch4(1:36, 1:36)
+         cov_inv_y(49:67, 49:67) = cov_inv_co2(13:31, 13:31)
       else
-         print*, "error in read_nc_s_y_inv: incorrect window setup"
+         print*, "n_co2 = ", n_co2
+         print*, "n_ch4 = ", n_ch4
+         print*, "ny = ", ny
          stop
       end if
 
-      print*, "DEBUG:"
-      print*, "line_number = ", line_number
-      print*, "cov_inv_y = "
-      do ierr = 1, 3
-         print*, cov_inv_y(ierr, 1:4)
-      end do
-      print*, "shape(cov_inv_y) = "
-      print*, shape(cov_inv_y)
+      ! print*, "DEBUG:"
+      ! print*, "line_number = ", line_number
+      ! print*, "cov_inv_y = "
+      ! do ierr = 1, 3
+      !    print*, cov_inv_y(ierr, 1:4)
+      ! end do
+      ! print*, "shape(cov_inv_y) = "
+      ! print*, shape(cov_inv_y)
    end subroutine read_nc_s_y_inv
 
 !*************************************************************************************
