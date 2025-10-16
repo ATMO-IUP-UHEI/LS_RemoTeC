@@ -385,37 +385,26 @@ contains
       ! ch4_offdiagonal_scaling is necessary for numerical reasons.
       ! matrix_inversion does not converge without it.
       ! currently only implemented for strong ch4 band
-      ch4_offdiagonal_scaling = 1.05
+      ch4_offdiagonal_scaling = 0.95
 
-      ! trying fix: shorten ch4 window for numerical stability
-      ! 35 -> 28
-      ! 36 -> 29
       LEGAL_CO2 = 12
-      LEGAL_CH4 = 13
+      LEGAL_CH4 = 35
       LEGAL_WEAK = 19
 
       cov_inv_y = 0
       if (flag_inv .eq. 4) then ! strong_co2 + strong_ch4
-         ! print*, "strong co2 + strong ch4"
-         ! print*, n_co2, LEGAL_CO2
-         ! print*, n_ch4, LEGAL_CH4
-         ! print*, ny, LEGAL_CO2 + LEGAL_CH4
          if (n_co2 .eq. LEGAL_CO2 .and. n_ch4 .eq. LEGAL_CH4 .and. ny .eq. LEGAL_CO2 + LEGAL_CH4) then
-            ! print*, "case 1"
             cov_inv_y(1:n_co2, 1:n_co2) = cov_inv_co2(1:n_co2, 1:n_co2)
             cov_inv_y(n_co2+1:n_co2+n_ch4, n_co2+1:n_co2+n_ch4) = cov_inv_ch4(1:n_ch4, 1:n_ch4) * ch4_offdiagonal_scaling
             do i = n_co2+1, n_co2+n_ch4
                cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
             end do
          else if (n_co2 .eq. LEGAL_CO2 .and. n_ch4 .eq. LEGAL_CH4+1 .and. ny .eq. LEGAL_CO2+LEGAL_CH4+1) then
-            ! print*, "case 2"
             cov_inv_y(1:n_co2, 1:n_co2) = cov_inv_co2(1:n_co2, 1:n_co2)
             cov_inv_y(n_co2+1:n_co2+n_ch4, n_co2+1:n_co2+n_ch4) = cov_inv_ch4(1:n_ch4, 1:n_ch4) * ch4_offdiagonal_scaling
             do i = n_co2+1, n_co2+n_ch4
                cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
             end do
-         ! else
-            ! print*, "case 3"
          end if
       else if (flag_inv .eq. 5) then ! strong_co2
          if (n_co2 .eq. LEGAL_CO2 .and. ny .eq. LEGAL_CO2) then
