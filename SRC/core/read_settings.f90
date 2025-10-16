@@ -716,7 +716,7 @@ module read_settings_module
          write(message,*) 'CHECK_SETTINGS: READ XS FROM DATABASE OR REUSE FROM LAST RETRIEVAL?'
          goto 999
       endif
-      if(flag%inv < -6 .or. flag%inv>3) then
+      if(flag%inv < -6 .or. flag%inv>9) then
          ierr = ierr_var 
          write(message,*) 'CHECK_SETTINGS: which inversion method?'
          goto 999       

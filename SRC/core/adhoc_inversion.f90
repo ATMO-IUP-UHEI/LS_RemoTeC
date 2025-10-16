@@ -159,11 +159,12 @@ contains
       ny, nx, nlay, regskill, reg, &
       kmat, ymeas, ymod, s_y_vector, &
       x_i, s_x, x_apr, &
-      a_avg, d_mat, lambda, dfs, dfs_target, dfs_scat, upbd, lowbd, invflag, Boundary_Flag, line_number)
+      a_avg, d_mat, lambda, dfs, dfs_target, dfs_scat, upbd, lowbd, invflag, Boundary_Flag, line_number, flag_inv)
 
       implicit none
       integer, intent(in) :: ntype_target, naer
       integer, intent(in) :: line_number  ! hack
+      integer, intent(in) :: flag_inv ! hack. 4: strong_co2 + strong_ch4, 5: strong_co2, 6: strong_ch4
       integer, intent(out) :: Boundary_Flag
       integer, intent(out) :: invflag
       integer :: i, j, k, l
@@ -204,24 +205,8 @@ contains
 
       !*** Get inverse of measurement covariance matrix
       ! print*, "DEVELOPMENT: GET INVERSE OF COVARIANCE MATRIX"
-      i = 1
-      if (i .eq. 0) then
-         ! print*, "CALCULATE COV_INV FROM DIAGONAL s_y_vector"
-         s_y_inv = 0.
-         do l = 1, ny
-            s_y_inv(l, l) = 1./s_y_vector(l)
-         end do  ! loop over l
-      else if (i .eq. 1) then
-         ! print*, "USE HARDCODED FILE FOR COV_INV"
-         call read_nc_s_y_inv("CONTRL_OUT/MTF_OUT_DATA.nc", s_y_inv, ny, line_number)
-      else
-         stop
-      end if
-
-      ! do i = 1, ny
-      !    print*, s_y_inv(i, :)
-      ! end do
-      ! stop
+      ! print*, "USE HARDCODED FILE FOR COV_INV"
+      call read_nc_s_y_inv("CONTRL_OUT/MTF_OUT_DATA.nc", s_y_inv, ny, line_number, flag_inv)
 
       !*** Regularization matrix H
       call REGU_PAR(ntype_target, naer, nlay, nx, reg, H)
@@ -316,11 +301,12 @@ contains
 
 !*************************************************************************************
 
-   subroutine read_nc_s_y_inv(filepath, cov_inv_y, ny, line_number)
+   subroutine read_nc_s_y_inv(filepath, cov_inv_y, ny, line_number, flag_inv)
       use netcdf
       !*** input
       character(len=*), intent(in) :: filepath
-      integer, intent(in) :: ny
+      integer, intent(in) :: ny ! length of part of state vector designated for target absorbers
+      integer, intent(in) :: flag_inv ! hack. determines which target absorbers are used and how long vectors need to be
       integer, intent(in) :: line_number  ! hack (within a hack)
       !*** output
       real(double), dimension(ny, ny), intent(out) :: cov_inv_y
@@ -344,55 +330,22 @@ contains
       call check(nf90_inq_dimid(ncid, "wavelength1_ch4", varid), ierr)
       call check(nf90_inquire_dimension(ncid, varid, len=n_ch4), ierr)
 
-
       ! location of data in netcdf file
-      start3d = (/1, 1, line_number/)
+      start3d = (/1, 1, line_number/) ! (channel, channel, line)
 
       if (allocated(cov_inv_co2)) deallocate(cov_inv_co2)
       allocate(cov_inv_co2(n_co2, n_co2))
-      call check(nf90_inq_varid(ncid, "cov_inv_co2", varid), ierr)  ! beware of third dimension line
+      call check(nf90_inq_varid(ncid, "cov_inv_co2", varid), ierr)
       call check(nf90_get_var(ncid, varid, cov_inv_co2, start3d), ierr)
 
       if (allocated(cov_inv_ch4)) deallocate(cov_inv_ch4)
       allocate(cov_inv_ch4(n_ch4, n_ch4))
-      call check(nf90_inq_varid(ncid, "cov_inv_ch4", varid), ierr)  ! beware of third dimension line
+      call check(nf90_inq_varid(ncid, "cov_inv_ch4", varid), ierr)
       call check(nf90_get_var(ncid, varid, cov_inv_ch4, start3d), ierr)
 
       call check(nf90_close(ncid), ierr)
 
-      ! strong bands + weak bands: (strong band may be one longer due to 2400 nm channel drifting)
-      ! co2: 12 + 19 = 31
-      ! ch4: 35 + 19 = 54
-      ! remotec for both bands should have 3 windows with
-      ! 12 + 35 + 19 = 66
-      if (n_co2 .eq. 12 .and. n_ch4 .eq. 35 .and. ny .eq. 47) then
-         ! print*, "using strong bands"
-         cov_inv_y = 0
-         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
-         cov_inv_y(13:47, 13:47) = cov_inv_ch4(1:35, 1:35)
-      else if (n_co2 .eq. 12 .and. n_ch4 .eq. 36 .and. ny .eq. 48) then
-         ! print*, "using strong bands with drifted 2400 nm channel"
-         cov_inv_y = 0
-         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
-         cov_inv_y(13:48, 13:48) = cov_inv_ch4(1:36, 1:36)
-      else if (n_co2 .eq. 31 .and. n_ch4 .eq. 54 .and. ny .eq. 66) then
-         ! print*, "using both bands"
-         cov_inv_y = 0
-         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
-         cov_inv_y(13:47, 13:47) = cov_inv_ch4(1:35, 1:35)
-         cov_inv_y(48:66, 48:66) = cov_inv_co2(13:31, 13:31)
-      else if (n_co2 .eq. 31 .and. n_ch4 .eq. 55 .and. ny .eq. 67) then
-         ! print*, "using both bands with drifted 2400 nm channel"
-         cov_inv_y = 0
-         cov_inv_y(1:12, 1:12) = cov_inv_co2(1:12, 1:12)
-         cov_inv_y(13:48, 13:48) = cov_inv_ch4(1:36, 1:36)
-         cov_inv_y(49:67, 49:67) = cov_inv_co2(13:31, 13:31)
-      else
-         print*, "n_co2 = ", n_co2
-         print*, "n_ch4 = ", n_ch4
-         print*, "ny = ", ny
-         stop
-      end if
+      call populate_cov_inv_from_file(ny, n_co2, n_ch4, cov_inv_co2, cov_inv_ch4, cov_inv_y, flag_inv)
 
       ! print*, "DEBUG:"
       ! print*, "line_number = ", line_number
@@ -403,6 +356,127 @@ contains
       ! print*, "shape(cov_inv_y) = "
       ! print*, shape(cov_inv_y)
    end subroutine read_nc_s_y_inv
+
+   subroutine populate_cov_inv_from_file(ny, n_co2, n_ch4, cov_inv_co2, cov_inv_ch4, cov_inv_y, flag_inv)
+      ! input
+      integer, intent(in) :: ny, n_co2, n_ch4, flag_inv
+      real(double), dimension(:, :), intent(in) :: cov_inv_co2
+      real(double), dimension(:, :), intent(in) :: cov_inv_ch4
+      ! output
+      real(double), dimension(ny, ny), intent(out) :: cov_inv_y
+      ! local
+      integer :: i
+      integer :: LEGAL_CO2, LEGAL_CH4, LEGAL_WEAK
+      real(double) :: ch4_offdiagonal_scaling
+
+      ! flag_inv determines size of the state vector elements
+      ! strong_co2 has length 12
+      ! strong_ch4 has length 35 or 36 (depending on drifted 2400 nm channel)
+      ! weak_both counts for both gases and has length 19
+      ! the weak band is inside the co2 and ch4 vectors so it has to be extracted specifically. doing that from co2 because it has the same length always
+      ! for a sanity check, the total length ny is compared to the sum of the lenghts of the individual bands
+      ! 4: strong_co2 + strong_ch4               12 + 35 = 47 or 12 + 36 = 48
+      ! 5: strong_co2                            12 = 12
+      ! 6: strong_ch4                            35 = 35 or 36 = 36
+      ! 7: strong_co2 + strong_ch4 + weak_both   12 + 35 + 19 = 66 or 12 + 36 + 19 = 67, note: co2 has length (12+19=31), ch4 has length (35+19=54 or 36+19=55)
+      ! 8: strong_co2 + weak_both                12 + 19 = 31, note: co2 has length (12+19=31)
+      ! 9: strong_ch4 + weak_both                35 + 19 = 54 or 36 + 19 = 55, note: ch4 has length (35+19=54 or 36+19=55)
+
+      ! ch4_offdiagonal_scaling is necessary for numerical reasons.
+      ! matrix_inversion does not converge without it.
+      ! currently only implemented for strong ch4 band
+      ch4_offdiagonal_scaling = 1.05
+
+      ! trying fix: shorten ch4 window for numerical stability
+      ! 35 -> 28
+      ! 36 -> 29
+      LEGAL_CO2 = 12
+      LEGAL_CH4 = 13
+      LEGAL_WEAK = 19
+
+      cov_inv_y = 0
+      if (flag_inv .eq. 4) then ! strong_co2 + strong_ch4
+         ! print*, "strong co2 + strong ch4"
+         ! print*, n_co2, LEGAL_CO2
+         ! print*, n_ch4, LEGAL_CH4
+         ! print*, ny, LEGAL_CO2 + LEGAL_CH4
+         if (n_co2 .eq. LEGAL_CO2 .and. n_ch4 .eq. LEGAL_CH4 .and. ny .eq. LEGAL_CO2 + LEGAL_CH4) then
+            ! print*, "case 1"
+            cov_inv_y(1:n_co2, 1:n_co2) = cov_inv_co2(1:n_co2, 1:n_co2)
+            cov_inv_y(n_co2+1:n_co2+n_ch4, n_co2+1:n_co2+n_ch4) = cov_inv_ch4(1:n_ch4, 1:n_ch4) * ch4_offdiagonal_scaling
+            do i = n_co2+1, n_co2+n_ch4
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+         else if (n_co2 .eq. LEGAL_CO2 .and. n_ch4 .eq. LEGAL_CH4+1 .and. ny .eq. LEGAL_CO2+LEGAL_CH4+1) then
+            ! print*, "case 2"
+            cov_inv_y(1:n_co2, 1:n_co2) = cov_inv_co2(1:n_co2, 1:n_co2)
+            cov_inv_y(n_co2+1:n_co2+n_ch4, n_co2+1:n_co2+n_ch4) = cov_inv_ch4(1:n_ch4, 1:n_ch4) * ch4_offdiagonal_scaling
+            do i = n_co2+1, n_co2+n_ch4
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+         ! else
+            ! print*, "case 3"
+         end if
+      else if (flag_inv .eq. 5) then ! strong_co2
+         if (n_co2 .eq. LEGAL_CO2 .and. ny .eq. LEGAL_CO2) then
+            cov_inv_y(1:n_co2, 1:n_co2) = cov_inv_co2(1:n_co2, 1:n_co2)
+         end if
+      else if (flag_inv .eq. 6) then ! strong_ch4
+         if (n_ch4 .eq. LEGAL_CH4 .and. ny .eq. LEGAL_CH4) then
+            cov_inv_y(1:LEGAL_CH4, 1:LEGAL_CH4) = cov_inv_ch4(1:LEGAL_CH4, 1:LEGAL_CH4) * ch4_offdiagonal_scaling
+            do i = 1, LEGAL_CH4
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+         else if (n_ch4 .eq. LEGAL_CH4+1 .and. ny .eq. LEGAL_CH4+1) then
+            cov_inv_y(1:n_ch4, 1:n_ch4) = cov_inv_ch4(1:n_ch4, 1:n_ch4) * ch4_offdiagonal_scaling
+            do i = 1, n_ch4
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+         end if
+      else if (flag_inv .eq. 7) then ! strong_co2 + strong_ch4 + weak_both
+         if (n_co2 .eq. LEGAL_CO2+LEGAL_WEAK .and. n_ch4 .eq. LEGAL_CH4+LEGAL_WEAK .and. ny .eq. LEGAL_CO2+LEGAL_CH4+LEGAL_WEAK) then
+            cov_inv_y(1:LEGAL_CO2, 1:LEGAL_CO2) = cov_inv_co2(1:LEGAL_CO2, 1:LEGAL_CO2)
+            cov_inv_y(LEGAL_CO2+1:LEGAL_CO2+LEGAL_CH4, LEGAL_CO2+1:LEGAL_CO2+LEGAL_CH4) = cov_inv_ch4(1:LEGAL_CH4, 1:LEGAL_CH4) * ch4_offdiagonal_scaling
+            do i = LEGAL_CO2+1, LEGAL_CO2+LEGAL_CH4
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+            cov_inv_y(LEGAL_CO2+LEGAL_CH4+1:LEGAL_CO2+LEGAL_CH4+LEGAL_WEAK, LEGAL_CO2+LEGAL_CH4+1:LEGAL_CO2+LEGAL_CH4+LEGAL_WEAK) = cov_inv_co2(LEGAL_CO2+1:LEGAL_WEAK, LEGAL_CO2+1:LEGAL_WEAK)
+         else if (n_co2 .eq. LEGAL_CO2+LEGAL_WEAK .and. n_ch4 .eq. LEGAL_CO2+LEGAL_CH4+1 .and. ny .eq. LEGAL_CO2+LEGAL_CH4+1+LEGAL_WEAK) then
+            cov_inv_y(1:LEGAL_CO2, 1:LEGAL_CO2) = cov_inv_co2(1:LEGAL_CO2, 1:LEGAL_CO2)
+            cov_inv_y(LEGAL_CO2+1:LEGAL_CH4+LEGAL_CH4+1, LEGAL_CO2+1:LEGAL_CO2+LEGAL_CH4+1) = cov_inv_ch4(1:LEGAL_CH4+1, 1:LEGAL_CH4+1) * ch4_offdiagonal_scaling
+            do i = LEGAL_CO2+1, LEGAL_CO2+LEGAL_CH4+1
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+            cov_inv_y(LEGAL_CO2+LEGAL_CH4+1+1:LEGAL_CO2+LEGAL_CH4+1+LEGAL_WEAK, LEGAL_CO2+LEGAL_CH4+1+1:LEGAL_CO2+LEGAL_CH4+1+LEGAL_WEAK) = cov_inv_co2(LEGAL_CO2+1:LEGAL_CO2+LEGAL_WEAK, LEGAL_CO2+1:LEGAL_CO2+LEGAL_WEAK)
+         end if
+      else if (flag_inv .eq. 8) then ! strong_co2 + weak_both
+         if (n_co2 .eq. LEGAL_CO2+LEGAL_WEAK .and. ny .eq. LEGAL_CO2+LEGAL_WEAK) then
+            cov_inv_y(1:LEGAL_CO2, 1:LEGAL_CO2) = cov_inv_co2(1:LEGAL_CO2, 1:LEGAL_CO2)
+            cov_inv_y(LEGAL_CO2+1:LEGAL_CO2+LEGAL_WEAK, LEGAL_CO2+1:LEGAL_CO2+LEGAL_WEAK) = cov_inv_co2(LEGAL_CO2+1:LEGAL_CO2+LEGAL_WEAK, LEGAL_CO2+1:LEGAL_WEAK)
+         end if
+      else if (flag_inv .eq. 9) then ! strong_ch4 + weak_both
+         if (n_ch4 .eq. LEGAL_CH4+LEGAL_WEAK .and. ny .eq. LEGAL_CH4+LEGAL_WEAK) then
+            cov_inv_y(1:LEGAL_CH4, 1:LEGAL_CH4) = cov_inv_ch4(1:LEGAL_CH4, 1:LEGAL_CH4) * ch4_offdiagonal_scaling
+            do i = 1, LEGAL_CH4
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+            cov_inv_y(LEGAL_CH4+1:LEGAL_CH4+LEGAL_WEAK, LEGAL_CH4+1:LEGAL_CH4+LEGAL_WEAK) = cov_inv_co2(1:LEGAL_WEAK, 1:LEGAL_WEAK)
+         else if (n_ch4 .eq. LEGAL_CH4+1+LEGAL_WEAK .and. ny .eq. LEGAL_CH4+1+LEGAL_WEAK) then
+            cov_inv_y(1:LEGAL_CH4+1, 1:LEGAL_CH4+1) = cov_inv_ch4(1:LEGAL_CH4+1, 1:LEGAL_CH4+1) * ch4_offdiagonal_scaling
+            do i = 1, LEGAL_CH4+1
+               cov_inv_y(i, i) = cov_inv_y(i, i) / ch4_offdiagonal_scaling
+            end do
+            cov_inv_y(LEGAL_CH4+1+1:LEGAL_CH4+1+LEGAL_WEAK, LEGAL_CH4+1+1:LEGAL_CH4+1+LEGAL_WEAK) = cov_inv_co2(1:LEGAL_WEAK, 1:LEGAL_WEAK)
+         end if
+      end if
+      if (cov_inv_y(1, 1) .eq. 0) then
+         print*, "ERROR POPULATE_COV_INV_FROM_FILE: First element of covariance matrix is zero, something probably went wrong. Stopping..."
+         stop
+      else if (cov_inv_y(ny, ny) .eq. 0) then
+         print*, "ERROR POPULATE_COV_INV_FROM_FILE: Last element of covariance matrix is zero, something probably went wrong. Stopping..."
+         stop
+      end if
+   end subroutine populate_cov_inv_from_file
 
 !*************************************************************************************
  
