@@ -6,7 +6,7 @@ module wrapper_retrieve_module
                                window_ini, settings_flags, file_paths, altitude_grid, read_settings, read_win_xsdb
    use synthetic_input_module, only: instrument_errors, read_errors, synthetic_data, get_synthetic_data, get_synthetic_data_nc
   use spectrum_interface_module, only: spectrum, read_l1b, instrument_response, get_isrf_interpolated
-   use solar_model_module, only: sun_spectrum, read_sun_netcdf, read_sun_tsis1_hsrs, interpolate_solar_spectrum
+   use read_solar_module, only: read_solar, interpolate_solar_spectrum
    use diagnostics_module, only: diagnostics_retrieve
 
    implicit none
@@ -100,15 +100,9 @@ contains
             fixed%win_ini(n)%reso + dble(k - 1)*fixed%win_ini(n)%reso
       end do
 
-      !*** Read reference irradiance
-      if (fixed%flag%solar == 0) then
-         call read_sun_netcdf(fixed%path%sun, sun_input, ierr)
-         if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_sun_netcdf.', 8)
-      else if (fixed%flag%solar == 1) then
-         call read_sun_tsis1_hsrs(fixed%path%sun, sun_input, ierr)
-         if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_sun_tsis1_hsrs.', 8)
-      end if
-
+      !*** Read solar irradiance spectrum
+      call read_solar(fixed%path%sun, sun_input, ierr)
+      if (ierr .ne. 0) call writelog('INIT_SHARED: Error in read_solar.', 8)
       !*** Interpolate irradiance to internal wavelength grid
       call interpolate_solar_spectrum(sun_input, fixed%win_ini, ierr)
       if (ierr .ne. 0) call writelog('INIT_SHARED: Error in interpolate_solar_spectrum.', 8)

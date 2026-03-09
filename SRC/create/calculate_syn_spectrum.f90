@@ -439,7 +439,9 @@ contains
 
             !*** For scenes with vegetation:
             if (win_ini(n)%Fsflag == 1 .and. fluorescence) then
-               win(n)%Fs(1) = 3.798d12 ! in photons s-1 cm-2 sr-1 nm-1 = 10 W m-2 sr-1 um-1 ! TODO: check FS
+               win(n)%Fs(1) = 3.798d10 ! in W m-2 sr-1 nm-1
+               ! win(n)%Fs(1) = 3.798d12 ! in photons s-1 cm-2 sr-1 nm-1 = 10 W m-2 sr-1 um-1 ! TODO: check FS, also TODO: this line
+               ! can be deleted if above line is correct.
             else if (win_ini(n)%Fsflag == 2 .and. fluorescence) then
                win(n)%Fs(1) = 0.01d0   ! in fraction of continuum
             end if
@@ -1232,11 +1234,12 @@ real(double), dimension(size(earth_radiance)) :: E_radiance, S_irradiance, Emax_
       npix_det = int(band_width/fwhm*win_ini%samp)        ! Number of detector pixels in the spectral (N/S) dimension [pix]
       dispersion = band_width/npix_det                       ! Wavelength interval covered by *one* detector pixel (spectral dimension) [nm/pix]
 
-      !*** Convert Reflected solar spectral radiance (earth_radiance) and
+      !*** Convert reflected solar spectral radiance (earth_radiance) and
       !*** incoming solar spectral irradiance at TOA (solar_irradiance) to
-      !*** SI units (from 'cm-2' to 'm-2')
-      E_radiance(:) = earth_radiance(:)*1.d4          ! Reflected solar radiation in spectral radiances [photons/s/m^2/sr/nm]
-      S_irradiance(:) = solar_irradiance(:)*1.d4      ! Incoming solar radiation at TOA in spectral irradiances photons/s/m^2/nm]
+      !*** Radiance: W m-2 sr-1 nm-1 -> photons s-1 m-2 sr-1 nm-1
+      !*** Irradiance: W m-2 nm-1 -> photons s-1 m-2 nm-1
+      E_radiance(:) = earth_radiance(:) * win_ini%wavelength_hi(:) * 1d-9 / h_planck / c_light * 1d-4
+      S_irradiance(:) = solar_irradiance(:) * win_ini%wavelength_hi(:) * 1d-9 / h_planck / c_light * 1d-4
 
       !*** Calculate the maximum spectral radiance that is expected to hit the telescope.
       !*** This is given by the incoming solar irradiance at TOA corrected for the smallest

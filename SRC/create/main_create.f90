@@ -2,7 +2,7 @@ program main
    use header_module
    use read_settings_module
    use read_synsettings_module
-   use solar_model_create_module, only: sun_spectrum, read_sun_netcdf, read_sun_tsis1_hsrs, interpolate_solar_spectrum
+   use read_solar_module, only: read_solar, interpolate_solar_spectrum
    use atmo_interface_create_module, only: atmosphere_input, output_atm, output_meteo, output_atm_nc_js
    use atmosphere_internal_module, only: atmospheric_scenario, atmosphere_interpolate
    use calculate_syn_spectrum_module, only: calculate_syn_spectrum, spectrum, &
@@ -135,12 +135,8 @@ program main
    end if
    if (ierr .ne. 0) call stopretrieval("MAIN: error reading cirrus table")
 
-   !*** Read solar spectrum
-   if (flag%solar == 0) then
-      call read_sun_netcdf(path%sun, sun_input, ierr)
-   else if (flag%solar == 1) then
-      call read_sun_tsis1_hsrs(path%sun, sun_input, ierr)
-   end if
+   !*** Read solar irradiance spectrum
+   call read_solar(path%sun, sun_input, ierr)
    !*** Interpolate irradiance to internal wavelength grid
    call interpolate_solar_spectrum(sun_input, win_ini, ierr)
 

@@ -868,12 +868,12 @@ contains
 
             !*** Define attributes
             call check(nf90_put_att(grpid(n), wave_id(n), "unit", "nm"), stat)
-            call check(nf90_put_att(grpid(n), rad_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), radnoise_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), raderror_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), irrad_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), irradnoise_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), irraderror_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), rad_id(n), "unit", "W m-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), radnoise_id(n), "unit", "W m-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), raderror_id(n), "unit", "W m-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irrad_id(n), "unit", "W m-2 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irradnoise_id(n), "unit", "W m-2 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irraderror_id(n), "unit", "W m-2 nm-1"), stat)
 
             !*** write spectral grid
             call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
@@ -1078,12 +1078,12 @@ contains
 
             !*** Define attributes
             call check(nf90_put_att(grpid(n), wave_id(n), "unit", "nm"), stat)
-            call check(nf90_put_att(grpid(n), rad_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), radnoise_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), raderror_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), irrad_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), irradnoise_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
-            call check(nf90_put_att(grpid(n), irraderror_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), rad_id(n), "unit", "W m-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), radnoise_id(n), "unit", "W m-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), raderror_id(n), "unit", "W m-2 sr-1 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irrad_id(n), "unit", "W m-2 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irradnoise_id(n), "unit", "W m-2 nm-1"), stat)
+            call check(nf90_put_att(grpid(n), irraderror_id(n), "unit", "W m-2 nm-1"), stat)
 
             !*** write spectral grid
             call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
@@ -1282,7 +1282,7 @@ contains
 
          !*** Spectral radiances
          call check(nf90_def_var(grpid(n), "spectral_radiance", NF90_double, dimid_wave, rad_id(n)), stat)
-         call check(nf90_put_att(grpid(n), rad_id(n), "unit", "photons s-1 cm-2 sr-1 nm-1"), stat)
+         call check(nf90_put_att(grpid(n), rad_id(n), "unit", "W m-2 sr-1 nm-1"), stat)
          call check(nf90_put_att(grpid(n), rad_id(n), "description", "High-resolution spectral radiances at telescope"), stat)
          call check(nf90_put_var(grpid(n), rad_id(n), measurement_hi(n)%radiance), stat)
 
