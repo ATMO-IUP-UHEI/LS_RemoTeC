@@ -124,13 +124,13 @@ obj_core := $(addprefix $(objdir)/, \
     spectrum_internal.o \
     atmosphere_internal.o \
     read_miprep.o \
+    read_solar.o \
     retrieval.o \
 )
 
 obj_create := $(addprefix $(objdir)/, \
     spectrum_interface_create.o \
     atmosphere_interface_create.o \
-    solar_model_create.o \
     noise.o \
     read_synsettings.o \
     calculate_syn_spectrum.o \
@@ -141,7 +141,6 @@ obj_retrieve := $(addprefix $(objdir)/, \
     read_errors.o \
     spectrum_interface_retrieve.o \
     atmosphere_interface_retrieve.o \
-    solar_model_retrieve.o \
     synthetic_input.o \
     diagnostics_retrieve.o \
     wrapper_retrieve.o \

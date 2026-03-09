@@ -20,12 +20,12 @@ module spectrum_internal_module
 !     real(double) :: fwhm                                        !< Width of instrument function                        [nm]
      !real(double), dimension(:), allocatable :: wavelength	  !rrae: OCO2 calibration in wavelength
      real(double), dimension(:), allocatable :: wavelength       !< wavelength grid                                     [nm]
-     real(double), dimension(:), allocatable :: radiance         !< spectral radiance for each spectral pixel           [photons/s/cm^2/nm/sr]
-     real(double), dimension(:), allocatable :: radiance_noise   !< statistical error of radiance                       [photons/s/cm^2/nm/sr]
-     real(double), dimension(:), allocatable :: radiance_error   !< systematic error of radiance (or simulated noise)   [photons/s/cm^2/nm/sr]
-     real(double), dimension(:), allocatable :: irradiance       !< spectral irradiance for each spectral pixel         [photons/s/cm^2/nm]
-     real(double), dimension(:), allocatable :: irradiance_noise !< statistical error of irradiance                     [photons/s/cm^2/nm]
-     real(double), dimension(:), allocatable :: irradiance_error !< systematic error of irradiance (or simulated noise) [photons/s/cm^2/nm]
+     real(double), dimension(:), allocatable :: radiance         !< spectral radiance for each spectral pixel           [W m-2 sr-1 nm-1]
+     real(double), dimension(:), allocatable :: radiance_noise   !< statistical error of radiance                       [W m-2 sr-1 nm-1]
+     real(double), dimension(:), allocatable :: radiance_error   !< systematic error of radiance (or simulated noise)   [W m-2 sr-1 nm-1]
+     real(double), dimension(:), allocatable :: irradiance       !< spectral irradiance for each spectral pixel         [W m-2 nm-1]
+     real(double), dimension(:), allocatable :: irradiance_noise !< statistical error of irradiance                     [W m-2 nm-1]
+     real(double), dimension(:), allocatable :: irradiance_error !< systematic error of irradiance (or simulated noise) [W m-2 nm-1]
      integer, dimension(:), allocatable :: mask                  !< pixel mask: 0=ok, 1=bad
 
 !*** Multiplicative weighting factors for stokes coefficients provided by NASA L1b
