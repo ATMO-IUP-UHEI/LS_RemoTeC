@@ -369,7 +369,7 @@ contains
       integer :: LEGAL_CO2, LEGAL_CH4
       real(double) :: offdiagonal_scaling
 
-      ! flag_inv determines size of the state vector elements
+      ! flag_inv determines gas (and with it size of the measurement vector)
       ! strong_co2 has length 12
       ! strong_ch4 has length 35 or 36 (depending on drifted 2400 nm channel)
       LEGAL_CO2 = 12
