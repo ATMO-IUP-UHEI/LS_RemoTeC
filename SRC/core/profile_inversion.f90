@@ -1040,8 +1040,7 @@ contains
                call_x_apr, &
                call_ak, call_cf, lambda, degfreedom, dfs_target, dfs_scat,&
                call_upperx, call_lowerx, SVDFlag,Boundary_Flag)
-       elseif(flag%inv==4 .or. flag%inv==5 .or. flag%inv==6 &
-              .or. flag%inv==7 .or. flag%inv==8 .or. flag%inv==9) then
+       elseif(flag%inv==4 .or. flag%inv==5) then
           call adhoc_inversion_matrix(&
                absorb%ntype_target, naer-aer_red, &
                nwave_lo, nstate-reduction, nlay, regskill, flag%reg,&
