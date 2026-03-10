@@ -719,27 +719,27 @@ contains
 
        !*** Write screen/log output
        if(flag%output >=2) then
-          write(message,'(X,A,5X,I2.2)') 'It#:',iter
+          write(message,'(X,A,7X,I2.2)') 'It#:',iter
           call writelog (message, 3)
-          write(message,'(X,A,5X,1pE13.6)')'lambda:',lambda
+          write(message,'(X,A,3X,1pE13.6)')'lambda:',lambda
           call writelog(message,3)
-          write(message,'(X,A,3X,1(1pE13.6,X))')'CHI2_RED:',chi2
+          write(message,'(X,A,1X,1(1pE13.6,X))')'CHI2_RED:',chi2
           call writelog (message, 3)
-          write(message,'(X,A,4X,1(1pE13.6,X))')'RMS:',rms
+          write(message,'(X,A,6X,1(1pE13.6,X))')'RMS:',rms
           call writelog (message, 3)
-          write(message,'(X,A,4X,10(1pE13.6,X))')'DFS:',degfreedom, dfs_target(:), dfs_scat
+          write(message,'(X,A,6X,10(1pE13.6,X))')'DFS:',degfreedom, dfs_target(:), dfs_scat
           call writelog (message, 3)
           do j = 1, absorb%ntype_target
              i1 = 1+nlay*(j-1)
              i2 = nlay*j
-             write(message,'(X,A,X,I4,X,2(X,1pE13.6))')'abundance of target:', &
+             write(message,'(X,A,X,I4.4,X,2(X,1pE13.6))')'abundance of target:', &
                   absorb%type_x_target(j), &
                   sum(x_state(i1:i2))/sum(dvair),DSQRT(sum(s_state(i1:i2,i1:i2)))/sum(dvair)
              call writelog (message, 3)
           enddo
           !*** state vector
           do k=1,nlay*absorb%ntype_target
-             write(message,'(X,I2.2,X,A,I4,X,A,3(4X,1pE13.6))')k,'TAR',&
+             write(message,'(X,I2.2,X,A,X,I4.4,A,3(4X,1pE13.6))')k,'TAR',&
                   absorb%type_x_target(int((k-1)/nlay)+1),': ',&
                   x_state(k),&
                   sqrt(s_state(k,k)),&
@@ -748,7 +748,7 @@ contains
           enddo
           off=nlay*absorb%ntype_target
           do k=1,absorb%ntype_global
-             write(message,FMT='(X,I2.2,X,A,I4,X,A,3(4X,1pE13.6))')off+k,'ABS',&
+             write(message,FMT='(X,I2.2,X,A,X,I4.4,A,3(4X,1pE13.6))')off+k,'ABS',&
                   absorb%type_x_global(k),': ',&
                   x_state(off+k),&
                   sqrt(s_state(off+k,off+k)),&
