@@ -187,8 +187,8 @@ contains
             end if
 
             ! Cut down spectrum to necessary wavelength range
-            min_index = maxloc(wavelength, dim=1, mask=wavelength<=win_ini(win)%wave_start)
-            max_index = minloc(wavelength, dim=1, mask=wavelength>=win_ini(win)%wave_stop)
+            min_index = minloc(wavelength, dim=1, mask=wavelength>=win_ini(win)%wave_start)
+            max_index = maxloc(wavelength, dim=1, mask=wavelength<=win_ini(win)%wave_stop)
             nwave = max_index - min_index + 1
 
             measurement(win)%nwave = nwave
