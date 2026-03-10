@@ -723,7 +723,7 @@ contains
           call writelog (message, 3)
           write(message,'(X,A,5X,1pE13.6)')'lambda:',lambda
           call writelog(message,3)
-          write(message,'(X,A,3X,1(1pE13.6,X))')'CHI2:',chi2
+          write(message,'(X,A,3X,1(1pE13.6,X))')'CHI2_RED:',chi2
           call writelog (message, 3)
           write(message,'(X,A,4X,1(1pE13.6,X))')'RMS:',rms
           call writelog (message, 3)
