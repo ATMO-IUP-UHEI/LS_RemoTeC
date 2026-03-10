@@ -15,7 +15,7 @@ module diagnostics_module
 !           iter = 92         -> maxiter has been exceeded
 !           iter = 93         -> maxiter has been exceeded and lambda>0 OR lambda >1d5
 !           iter = 95         -> failure in Cross-section table
-!           iter = 96         -> chi2 > 1.d10 or NaN
+!           iter = 96         -> chi2_red > 1.d10 or NaN
 !           iter = 97         -> SVDFlag < 0), i.e., singular value decomposition failed
 !           iter = 98         -> degree of freedom = NaN
 !           iter = 99         -> boundary hit
@@ -50,7 +50,7 @@ contains
       integer :: k, l, n, i, j, i1, i2, length, now(3), io, nstate, ntype_target, ntype_target_in
       character(299) :: ncfile
       character(6):: runidstring
-      real(double) :: scale, chi2
+      real(double) :: scale, chi2_red
       real(double), dimension(:), allocatable :: x, x_err, wave_start_in, wave_stop_in, alb_in, ot_in, cot_in
       real(double), dimension(11) :: x_in
       integer, dimension(11) :: x_in_flag
@@ -229,8 +229,8 @@ contains
       !*** FOR CONVERGED RETRIEVALS ERROR_ID GIVES THE NUMBER OF ITERATIONS
       ! if (retrieval_output%error_ID == 0) retrieval_output%error_ID = retrieval_output%iter
 
-      !*** Compute chi2
-      chi2 = retrieval_output%chi2(retrieval_output%iter)/(sum(retrieval_output%ny) - retrieval_output%dfs)
+      !*** Compute chi2_red
+      chi2_red = retrieval_output%chi2(retrieval_output%iter)/(sum(retrieval_output%ny) - retrieval_output%dfs)
 
       !*** Get reference (input) data
       if (allocated(alb_in)) deallocate (alb_in)
@@ -328,8 +328,8 @@ contains
          call check(nf90_put_att(ncid, eid_id, "long_name", "Error-ID for retrieval"), stat)
 
          !*** Quality measures
-         call check(nf90_def_var(ncid, "chi2", nf90_float, dimid_nobs, chi_id), stat)
-         call check(nf90_put_att(ncid, chi_id, "long_name", "Chi-squared quality measure of retrieval"), stat)
+         call check(nf90_def_var(ncid, "chi2_red", nf90_float, dimid_nobs, chi_id), stat)
+         call check(nf90_put_att(ncid, chi_id, "long_name", "Chi-squared reduced quality measure of retrieval"), stat)
 
          call check(nf90_def_var(ncid, "dfs", nf90_float, dimid_nobs, dfs_id), stat)
          call check(nf90_put_att(ncid, dfs_id, "long_name", "Degrees of freedom for retrieval"), stat)
@@ -437,7 +437,7 @@ contains
          call check(nf90_inq_varid(ncid, "error_id", eid_id), stat)
 
          !*** Quality measures
-         call check(nf90_inq_varid(ncid, "chi2", chi_id), stat)
+         call check(nf90_inq_varid(ncid, "chi2_red", chi_id), stat)
          call check(nf90_inq_varid(ncid, "dfs", dfs_id), stat)
          call check(nf90_inq_varid(ncid, "dfs_scat", dfss_id), stat)
 
@@ -507,7 +507,7 @@ contains
       call check(nf90_put_var(ncid, eid_id, retrieval_output%error_ID, start=(/lastindex/)), stat)
 
       !*** Quality measures
-      call check(nf90_put_var(ncid, chi_id, chi2, start=(/lastindex/)), stat)
+      call check(nf90_put_var(ncid, chi_id, chi2_red, start=(/lastindex/)), stat)
       call check(nf90_put_var(ncid, dfs_id, retrieval_output%dfs, start=(/lastindex/)), stat)
       call check(nf90_put_var(ncid, dfss_id, retrieval_output%dfs_scat, start=(/lastindex/)), stat)
 
