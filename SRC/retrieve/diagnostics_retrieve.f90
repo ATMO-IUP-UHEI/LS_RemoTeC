@@ -375,9 +375,9 @@ contains
             call check(nf90_def_dim(grpid(n), "nwave", nwave, dimid_wave), stat)
 
             !*** Define the variables
-            call check(nf90_def_var(grpid(n), "wavelength", nf90_float, dimid_wave, wave_id(n)), stat)
-            call check(nf90_put_att(grpid(n), wave_id(n), "long_name", "Wavelength grid of spectrum"), stat)
-            call check(nf90_put_att(grpid(n), wave_id(n), "units", "nm"), stat)
+            ! call check(nf90_def_var(grpid(n), "wavelength", nf90_float, dimid_wave, wave_id(n)), stat)
+            ! call check(nf90_put_att(grpid(n), wave_id(n), "long_name", "Wavelength grid of spectrum"), stat)
+            ! call check(nf90_put_att(grpid(n), wave_id(n), "units", "nm"), stat)
 
             call check(nf90_def_var(grpid(n), "ot", nf90_float, dimid_nobs, ot_id(n)), stat)
             call check(nf90_put_att(grpid(n), ot_id(n), "long_name", "Retrieved total optical thickness"), stat)
@@ -400,7 +400,7 @@ contains
             end if
 
             !*** write spectral grid
-            call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
+            ! call check(nf90_put_var(grpid(n), wave_id(n), measurement(n)%wavelength), stat)
 
          end do
 
