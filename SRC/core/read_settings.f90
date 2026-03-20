@@ -759,7 +759,7 @@ module read_settings_module
       enddo
 
       do n=1, nwin
-         if(win_ini(n)%albflag<0 .or. win_ini(n)%albflag>3) then
+         if(win_ini(n)%albflag<0) then
              ierr = ierr_var 
             write(message,*) 'CHECK_SETTINGS: albflag not valid'    
             goto 999
