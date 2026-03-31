@@ -366,14 +366,23 @@ contains
       real(double), dimension(ny, ny), intent(out) :: cov_inv_y
       ! local
       integer :: i
-      integer :: LEGAL_CO2, LEGAL_CH4
+      integer, dimension(:), allocatable :: LEGAL_CO2
+      integer, dimension(:), allocatable :: LEGAL_CH4
       real(double) :: offdiagonal_scaling
 
       ! flag_inv determines gas (and with it size of the measurement vector)
+      ! enmap:
       ! strong_co2 has length 12
       ! strong_ch4 has length 35 or 36 (depending on drifted 2400 nm channel)
-      LEGAL_CO2 = 12
-      LEGAL_CH4 = 35
+      ! emit:
+      ! strong_co2 has length 14 or 15 (depending on drifted 1982 nm channel)
+      ! strong_ch4 has length 39
+      if (allocated(LEGAL_CO2)) deallocate(LEGAL_CO2)
+      allocate(LEGAL_CO2(3))
+      LEGAL_CO2 = (/ 12, 35, 36 /)
+      if (allocated(LEGAL_CH4)) deallocate(LEGAL_CH4)
+      allocate(LEGAL_CH4(3))
+      LEGAL_CH4 = (/ 35, 36, 39 /)
 
       ! offdiagonal_scaling is necessary for numerical reasons.
       ! matrix_inversion does not converge without it.
@@ -383,11 +392,9 @@ contains
       cov_inv_y = 0
 
       ! fill with correct cov_inv from file, double checking array lengths
-      if (flag_inv == 4 .and. n_co2 == LEGAL_CO2 .and. ny == LEGAL_CO2) then  ! co2
+      if (flag_inv == 4 .and. any(n_co2 == LEGAL_CO2) .and. any(ny == LEGAL_CO2)) then  ! co2
          cov_inv_y(1:ny, 1:ny) = cov_inv_co2(1:n_co2, 1:n_co2)
-      else if (flag_inv == 5 .and. n_ch4 == LEGAL_CH4 .and. ny == LEGAL_CH4) then  ! ch4 without additional drifted channel
-         cov_inv_y(1:ny, 1:ny) = cov_inv_ch4(1:n_ch4, 1:n_ch4)
-      else if (flag_inv == 5 .and. n_ch4 == LEGAL_CH4+1 .and. ny == LEGAL_CH4+1) then  ! ch4 with additional drifted channel
+      else if (flag_inv == 5 .and. any(n_ch4 == LEGAL_CH4) .and. any(ny == LEGAL_CH4)) then  ! ch4
          cov_inv_y(1:ny, 1:ny) = cov_inv_ch4(1:n_ch4, 1:n_ch4)
       else
          print*, "ERROR POPULATE_COV_INV_FROM_FILE: flag_inv and gas array lenghts don't match."
